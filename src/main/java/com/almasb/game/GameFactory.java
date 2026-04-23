@@ -8,6 +8,7 @@ import com.almasb.fxgl.entity.Spawns;
 import com.almasb.fxgl.physics.BoundingShape;
 import com.almasb.fxgl.physics.HitBox;
 import com.almasb.fxgl.physics.PhysicsComponent;
+import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
@@ -15,10 +16,14 @@ public class GameFactory implements EntityFactory {
 
     @Spawns("player")
     public Entity newPlayer(SpawnData data) {
+        PhysicsComponent physics = new PhysicsComponent();
+        physics.setBodyType(BodyType.DYNAMIC);
+
         return FXGL.entityBuilder(data)
                 .type(EnitiyType.PLAYER)
                 .viewWithBBox(new Rectangle(16, 16, Color.RED))
-                .with(new PhysicsComponent())
+                .with(physics)
+                .with(new PlayerComponent())
                 .collidable()
                 .build();
     }
