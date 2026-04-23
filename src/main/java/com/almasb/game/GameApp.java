@@ -33,23 +33,42 @@ public class GameApp extends GameApplication {
         input.addAction(new UserAction("Move Left") {
             @Override
             protected void onAction() {
-                player.getComponent(PlayerComponent.class).left();
+                if (player != null) {
+                    player.getComponent(PlayerComponent.class).left();
+                }
+            }
+            @Override
+            protected void onActionEnd() {
+                if (player.getComponent(PlayerComponent.class).isGrounded()) {
+                    player.getComponent(PlayerComponent.class).stop();
+                }
             }
         }, KeyCode.A);
 
         input.addAction(new UserAction("Move Right") {
             @Override
             protected void onAction() {
-                player.getComponent(PlayerComponent.class).right();
+                if (player != null) {
+                    player.getComponent(PlayerComponent.class).right();
+                }
+            }
+
+            @Override
+            protected void onActionEnd() {
+                if (player.getComponent(PlayerComponent.class).isGrounded()) {
+                    player.getComponent(PlayerComponent.class).stop();
+                }
             }
         }, KeyCode.D);
 
         input.addAction(new UserAction("Jump") {
             @Override
             protected void onAction() {
-                player.getComponent(PlayerComponent.class).jump();
+                if (player != null) {
+                    player.getComponent(PlayerComponent.class).jump();
+                }
             }
-        }, KeyCode.W);
+        }, KeyCode.SPACE);
     }
 
     public static void main(String[] args) {
