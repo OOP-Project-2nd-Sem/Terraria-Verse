@@ -6,7 +6,11 @@ import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.input.Input;
 import com.almasb.fxgl.input.UserAction;
+import com.almasb.fxgl.time.TimerAction;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
+import javafx.util.Duration;
 
 public class GameApp extends GameApplication {
 
@@ -23,7 +27,10 @@ public class GameApp extends GameApplication {
         FXGL.getGameWorld().addEntityFactory(new GameFactory());
         FXGL.setLevelFromMap("map1.tmx");
 
-        player = FXGL.getGameWorld().getSingleton(EnitiyType.PLAYER);
+        player = FXGL.getGameWorld().getSingleton(EntityType.PLAYER);
+
+        FXGL.getGameScene().getViewport().setBounds(-1500, 0, 1500, FXGL.getAppHeight());
+        FXGL.getGameScene().getViewport().bindToEntity(player, FXGL.getAppWidth() / 2, FXGL.getAppHeight() / 2);
     }
 
     @Override
@@ -69,6 +76,32 @@ public class GameApp extends GameApplication {
                 }
             }
         }, KeyCode.SPACE);
+
+        input.addAction(new UserAction("Mine") {
+            private TimerAction timer;
+
+            @Override
+            protected void onActionBegin() {
+                double worldX = input.getMouseXWorld();
+                double worldY = input.getMouseYWorld();
+
+                Rectangle2D mouseBounds = new Rectangle2D(worldX, worldY, 1, 1);
+
+                timer = FXGL.getGameTimer().runOnceAfter(() -> {
+                    for (Entity e : FXGL.getGameWorld().getEntitiesInRange(mouseBounds)) {
+                        if (e.isType(EntityType.BLOCK)) {
+                            e.removeFromWorld();
+                        }
+                    }
+                }, Duration.seconds(2));
+            }
+
+            @Override
+            protected void onActionEnd() {
+                if (timer != null)
+                    timer.expire();
+            }
+        }, MouseButton.PRIMARY);
     }
 
     public static void main(String[] args) {

@@ -1,6 +1,6 @@
 package com.almasb.game;
 
-public enum EnitiyType {
+public enum EntityType {
     PLAYER,
     BLOCK
 }
