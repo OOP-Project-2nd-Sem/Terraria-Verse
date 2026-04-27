@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="80" height="60" tilewidth="16" tileheight="16" infinite="0" nextlayerid="4" nextobjectid="12">
  <tileset firstgid="1" name="textures_02_08_25" tilewidth="16" tileheight="16" tilecount="624" columns="24">
-  <image source="../../../../../../../../../../../../home/dothashir/Downloads/textures_02_08_25.png" width="384" height="416"/>
+  <image source="textures_02_08_25.png" width="384" height="416"/>
  </tileset>
  <layer id="1" name="Terrain" width="80" height="60">
   <data encoding="csv">
