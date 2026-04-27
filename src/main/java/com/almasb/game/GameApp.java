@@ -11,7 +11,11 @@ import com.almasb.game.InventoryItem;
 import javafx.geometry.Pos;
 import javafx.scene.image.ImageView;
 import javafx.scene.control.Label;
+import com.almasb.fxgl.time.TimerAction;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
+import javafx.util.Duration;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.shape.Rectangle;
@@ -42,7 +46,10 @@ public class GameApp extends GameApplication {
         FXGL.getGameWorld().addEntityFactory(new GameFactory());
         FXGL.setLevelFromMap("map1.tmx");
 
-        player = FXGL.getGameWorld().getSingleton(EnitiyType.PLAYER);
+        player = FXGL.getGameWorld().getSingleton(EntityType.PLAYER);
+
+        FXGL.getGameScene().getViewport().setBounds(-1500, 0, 1500, FXGL.getAppHeight());
+        FXGL.getGameScene().getViewport().bindToEntity(player, FXGL.getAppWidth() / 2, FXGL.getAppHeight() / 2);
     }
 
     @Override
@@ -88,6 +95,32 @@ public class GameApp extends GameApplication {
                 }
             }
         }, KeyCode.SPACE);
+
+        input.addAction(new UserAction("Mine") {
+            private TimerAction timer;
+
+            @Override
+            protected void onActionBegin() {
+                double worldX = input.getMouseXWorld();
+                double worldY = input.getMouseYWorld();
+
+                Rectangle2D mouseBounds = new Rectangle2D(worldX, worldY, 1, 1);
+
+                timer = FXGL.getGameTimer().runOnceAfter(() -> {
+                    for (Entity e : FXGL.getGameWorld().getEntitiesInRange(mouseBounds)) {
+                        if (e.isType(EntityType.BLOCK)) {
+                            e.removeFromWorld();
+                        }
+                    }
+                }, Duration.seconds(2));
+            }
+
+            @Override
+            protected void onActionEnd() {
+                if (timer != null)
+                    timer.expire();
+            }
+        }, MouseButton.PRIMARY);
 
         input.addAction(new UserAction("Toggle Inventory") {
             @Override
