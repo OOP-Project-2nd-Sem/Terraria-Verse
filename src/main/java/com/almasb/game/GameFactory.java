@@ -48,4 +48,17 @@ public class GameFactory implements EntityFactory {
                 .collidable()
                 .build();
     }
+    @Spawns("item")
+    public Entity newItem(SpawnData data) {
+        PhysicsComponent physics = new PhysicsComponent();
+        physics.setBodyType(BodyType.DYNAMIC);
+        return FXGL.entityBuilder(data)
+                .with(new ItemComponent("stone", data.get("count"), new Rectangle(10,10,data.get("color"))))
+                .type(EntityType.ITEM)
+                .viewWithBBox(new Rectangle(10,10,data.get("color")))
+                .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
+                .with(physics)
+                .collidable()
+                .build();
+    }
 }

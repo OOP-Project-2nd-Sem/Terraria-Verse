@@ -27,7 +27,7 @@ import java.util.Collections;
 import javafx.geometry.Point2D;
 import javafx.scene.input.MouseButton;
 
-import static com.almasb.fxgl.dsl.FXGL.getGameScene;
+import static com.almasb.fxgl.dsl.FXGL.*;
 
 public class GameApp extends GameApplication {
 
@@ -109,6 +109,11 @@ public class GameApp extends GameApplication {
                 timer = FXGL.getGameTimer().runOnceAfter(() -> {
                     for (Entity e : FXGL.getGameWorld().getEntitiesInRange(mouseBounds)) {
                         if (e.isType(EntityType.BLOCK)) {
+                            spawn("item", new SpawnData(e.getX(), e.getY())
+                                    .put("width", 10)
+                                    .put("height", 10)
+                                    .put("count", 1)
+                                    .put("color", Color.BROWN));
                             e.removeFromWorld();
                         }
                     }
@@ -139,9 +144,11 @@ public class GameApp extends GameApplication {
         input.addAction(new UserAction("Get stone") {
             @Override
             protected void onActionBegin() {
-                InventoryItem invItem = new InventoryItem("stone", 1, new Rectangle(10,10, Color.GRAY));
-                player.getComponent(PlayerComponent.class).addItem(invItem);
-                refreshInventory();
+                spawn("item",new SpawnData(player.getX()+30,player.getY()-20)
+                        .put("width",10)
+                        .put("height",10)
+                        .put("count",1)
+                        .put("color",Color.BLUE));
             }
         }, KeyCode.G);
     }
@@ -172,6 +179,20 @@ public class GameApp extends GameApplication {
         getGameScene().addUINode(inventoryRoot);
     }
 
+    @Override
+    protected void initPhysics() {
+        FXGL.onCollisionBegin(EntityType.PLAYER, EntityType.ITEM, (player, item) -> {
+            String itemName = item.getComponent(ItemComponent.class).getName();
+            int itemCount = item.getComponent(ItemComponent.class).getCount();
+            Rectangle itemIcon = item.getComponent(ItemComponent.class).getIcon();
+
+            InventoryItem invItem = new InventoryItem(itemName, itemCount, itemIcon);
+            player.getComponent(PlayerComponent.class).addItem(invItem);
+
+            item.removeFromWorld();
+            refreshInventory();
+        });
+    }
     private StackPane createSlot(int size, int index) {
         StackPane slot = new StackPane();
         slot.setPrefSize(size, size);
