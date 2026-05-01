@@ -15,6 +15,7 @@ import com.almasb.fxgl.time.TimerAction;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.GridPane;
@@ -26,12 +27,20 @@ import java.util.ArrayList;
 import java.util.Collections;
 import javafx.geometry.Point2D;
 import javafx.scene.input.MouseButton;
+import javafx.scene.control.Button;
+import javafx.event.ActionEvent;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import javafx.scene.layout.VBox;
+import javafx.scene.control.TextField;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
 public class GameApp extends GameApplication {
 
-    private Entity player;
+    private Entity player, background;
     private GridPane inventoryRoot;
     private int selectedSlotIndex= -1;
 
@@ -43,13 +52,6 @@ public class GameApp extends GameApplication {
 
     @Override
     protected void initGame() {
-        FXGL.getGameWorld().addEntityFactory(new GameFactory());
-        FXGL.setLevelFromMap("map1.tmx");
-
-        player = FXGL.getGameWorld().getSingleton(EntityType.PLAYER);
-
-        FXGL.getGameScene().getViewport().setBounds(-1500, 0, 1500, FXGL.getAppHeight());
-        FXGL.getGameScene().getViewport().bindToEntity(player, FXGL.getAppWidth() / 2, FXGL.getAppHeight() / 2);
     }
 
     @Override
@@ -155,28 +157,7 @@ public class GameApp extends GameApplication {
 
     @Override
     protected void initUI() {
-        // Inventory toggle ke liye
-        inventoryRoot = new GridPane(4,4);
-        inventoryRoot.setHgap(4);
-        inventoryRoot.setVgap(4);
-        inventoryRoot.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-padding: 10;");
-
-        int COLS = 10;
-        int ROWS = 4;
-        int SLOT_SIZE = 50;
-
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLS; col++) {
-                StackPane slot = createSlot(SLOT_SIZE, row * COLS + col);
-                inventoryRoot.add(slot, col, row);
-            }
-        }
-
-        inventoryRoot.setTranslateX(25);
-        inventoryRoot.setTranslateY(25);
-        inventoryRoot.setVisible(false);
-
-        getGameScene().addUINode(inventoryRoot);
+        showMainMenu();
     }
 
     @Override
@@ -236,6 +217,30 @@ public class GameApp extends GameApplication {
 
         return slot;
     }
+    private void initInventory(){
+
+        inventoryRoot = new GridPane(4,4);
+        inventoryRoot.setHgap(4);
+        inventoryRoot.setVgap(4);
+        inventoryRoot.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-padding: 10;");
+
+        int COLS = 10;
+        int ROWS = 4;
+        int SLOT_SIZE = 50;
+
+        for (int row = 0; row < ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+                StackPane slot = createSlot(SLOT_SIZE, row * COLS + col);
+                inventoryRoot.add(slot, col, row);
+            }
+        }
+
+        inventoryRoot.setTranslateX(25);
+        inventoryRoot.setTranslateY(25);
+        inventoryRoot.setVisible(false);
+
+        getGameScene().addUINode(inventoryRoot);
+    }
     private void refreshInventory() {
         inventoryRoot.getChildren().clear();
 
@@ -247,6 +252,119 @@ public class GameApp extends GameApplication {
             for (int col = 0; col < COLS; col++) {
                 inventoryRoot.add(createSlot(SLOT_SIZE, row * COLS + col), col, row);
             }
+        }
+    }
+    private void showMainMenu() {
+        FXGL.getGameWorld().addEntityFactory(new GameFactory());
+        background= spawn("menu background");
+        VBox menu = new VBox(10);
+        menu.setTranslateX(500);
+        menu.setTranslateY(300);
+        Button newGame = new Button("New Character");
+        Button loadGame = new Button("Load Character");
+
+        newGame.setOnAction(e -> showCharacterCreation());
+        loadGame.setOnAction(e -> showCharacterSelection());
+
+        menu.getChildren().addAll(newGame, loadGame);
+
+        FXGL.getGameScene().addUINode(menu);
+    }
+    private void showCharacterCreation() {
+        FXGL.getGameScene().clearUINodes();
+
+        VBox menu = new VBox(10);
+        menu.setTranslateX(500);
+        menu.setTranslateY(300);
+        TextField nameField = new TextField();
+        nameField.setPromptText("Enter Name");
+
+        Button create = new Button("Create");
+
+        create.setOnAction(e -> {
+            String name = nameField.getText();
+
+            // Save character (file / memory)
+            saveCharacter(name);
+
+            showWorldSelection(name);
+        });
+
+        menu.getChildren().addAll(nameField, create);
+        FXGL.getGameScene().addUINode(menu);
+    }
+    private void showCharacterSelection() {
+        FXGL.getGameScene().clearUINodes();
+
+        VBox menu = new VBox(10);
+        menu.setTranslateX(500);
+        menu.setTranslateY(300);
+        List<String> characters = loadCharacters();
+
+        for (String name : characters) {
+            Button btn = new Button(name);
+
+            btn.setOnAction(e -> {
+                showWorldSelection(name);
+            });
+
+            menu.getChildren().add(btn);
+        }
+
+        FXGL.getGameScene().addUINode(menu);
+    }
+    private void showWorldSelection(String characterName) {
+        FXGL.getGameScene().clearUINodes();
+
+        VBox menu = new VBox(10);
+        menu.setTranslateX(500);
+        menu.setTranslateY(300);
+        Button world1 = new Button("World 1");
+
+        world1.setOnAction(e -> {
+            startGame(characterName, "world1");
+        });
+
+        menu.getChildren().add(world1);
+        FXGL.getGameScene().addUINode(menu);
+    }
+    private void startGame(String character, String world) {
+        FXGL.getGameScene().clearUINodes();
+        FXGL.getGameScene().getViewport().setBounds(-1500, 0, 1500, FXGL.getAppHeight());
+        // load world + player
+        FXGL.setLevelFromMap("map1.tmx");
+        background.removeFromWorld();
+        spawn("background");
+        player = FXGL.getGameWorld().getSingleton(EntityType.PLAYER);
+
+        FXGL.getGameScene().getViewport().bindToEntity(
+                player,
+                FXGL.getAppWidth() / 2,
+                FXGL.getAppHeight() / 2
+        );
+        initInventory();
+    }
+
+
+    private void saveCharacter(String name) {
+        try {
+            Files.write(
+                    Paths.get("characters.txt"),
+                    (name + "\n").getBytes(),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.APPEND
+            );
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private List<String> loadCharacters() {
+        try {
+            return Files.readAllLines(Paths.get("characters.txt"));
+        } catch (IOException e) {
+            return new ArrayList<>();
         }
     }
 
