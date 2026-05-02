@@ -7,6 +7,7 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.SpawnData;
 import com.almasb.fxgl.input.Input;
 import com.almasb.fxgl.input.UserAction;
+import com.almasb.fxgl.texture.Texture;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import com.almasb.fxgl.time.TimerAction;
@@ -17,8 +18,6 @@ import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.paint.Color;
 import java.awt.*;
 import java.util.List;
 import java.util.ArrayList;
@@ -128,13 +127,15 @@ public class GameApp extends GameApplication {
                 //Set the default value of mine time to 2.0 if the Entity does not have the property of "mine_time"
                 double mineTime = blockToMine.getProperties().exists("mine_time") ? blockToMine.getDouble("mine_time") : 2.0;
 
+                String spawnName = blockToMine.getString("type");
+
                 //Only execute after a duration of mineTime has passed
                 timer = FXGL.getGameTimer().runOnceAfter(() -> {
                     spawn("item", new SpawnData(blockToMine.getX(), blockToMine.getY())
+                            .put("type", spawnName)
                             .put("width", 10)
                             .put("height", 10)
-                            .put("count", 1)
-                            .put("color", Color.BROWN));
+                            .put("count", 1));
                     blockToMine.removeFromWorld();
                 }, Duration.seconds(mineTime));
             }
@@ -224,26 +225,6 @@ public class GameApp extends GameApplication {
                 inventoryRoot.setVisible(!inventoryRoot.isVisible());
             }
         }, KeyCode.E);
-
-        input.addAction(new UserAction("Get grass") {
-            @Override
-            protected void onActionBegin() {
-                InventoryItem invItem = new InventoryItem("grass block", 1, new Rectangle(10,10, Color.GREEN));
-                player.getComponent(PlayerComponent.class).addItem(invItem);
-                refreshInventory();
-            }
-        }, KeyCode.F);
-
-        input.addAction(new UserAction("Get stone") {
-            @Override
-            protected void onActionBegin() {
-                spawn("item",new SpawnData(player.getX()+30,player.getY()-20)
-                        .put("width",10)
-                        .put("height",10)
-                        .put("count",1)
-                        .put("color",Color.BLUE));
-            }
-        }, KeyCode.G);
     }
 
     @Override
@@ -256,7 +237,7 @@ public class GameApp extends GameApplication {
         FXGL.onCollisionBegin(EntityType.PLAYER, EntityType.ITEM, (player, item) -> {
             String itemName = item.getComponent(ItemComponent.class).getName();
             int itemCount = item.getComponent(ItemComponent.class).getCount();
-            Rectangle itemIcon = item.getComponent(ItemComponent.class).getIcon();
+            Texture itemIcon = item.getComponent(ItemComponent.class).getIcon();
 
             InventoryItem invItem = new InventoryItem(itemName, itemCount, itemIcon);
             player.getComponent(PlayerComponent.class).addItem(invItem);
@@ -296,9 +277,9 @@ public class GameApp extends GameApplication {
             InventoryItem item = inv.get(index);
 
             //ImageView icon = new ImageView(item.getIcon());
-            Rectangle icon = (Rectangle) item.getIcon();
-            icon.setWidth(size - 8);
-            icon.setHeight(size - 8);
+            Texture icon =  item.getIcon();
+            icon.setFitWidth(size - 8);
+            icon.setFitHeight(size - 8);
 
             Label countLabel = new Label(String.valueOf(item.getCount()));
             countLabel.setStyle("-fx-text-fill: white; -fx-font-size: 10;");

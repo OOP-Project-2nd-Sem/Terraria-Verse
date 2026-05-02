@@ -66,7 +66,7 @@ public class GameFactory implements EntityFactory {
     public Entity newStone(SpawnData data) {
         return FXGL.entityBuilder(data)
                 .type(EntityType.BLOCK)
-                .view(FXGL.texture("textures_02_08_25.png").subTexture((new javafx.geometry.Rectangle2D(21*16, 22*16, 16, 16))))
+                .view(FXGL.texture("textures_02_08_25.png").subTexture(new javafx.geometry.Rectangle2D(21*16, 22*16, 16, 16)))
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(new PhysicsComponent())
                 .with("mine_time", 2.5)
@@ -76,12 +76,19 @@ public class GameFactory implements EntityFactory {
 
     @Spawns("item")
     public Entity newItem(SpawnData data) {
+        String blockType = data.get("type");
+
+        int row = 0, col = 0;
+
+        if (blockType.equals("grass")) {row = 20; col = 22;}
+        else if (blockType.equals("stone")) {row = 21; col =22;}
+
         PhysicsComponent physics = new PhysicsComponent();
         physics.setBodyType(BodyType.DYNAMIC);
         return FXGL.entityBuilder(data)
-                .with(new ItemComponent("stone", data.get("count"), new Rectangle(10,10,data.get("color"))))
+                .with(new ItemComponent(blockType, data.get("count"), FXGL.texture("textures_02_08_25.png").subTexture(new javafx.geometry.Rectangle2D(row*16, col*16, 16, 16))))
                 .type(EntityType.ITEM)
-                .viewWithBBox(new Rectangle(10,10,data.get("color")))
+                .view(FXGL.texture("textures_02_08_25.png").subTexture(new javafx.geometry.Rectangle2D(row*16, col*16, 16, 16)))
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(physics)
                 .collidable()

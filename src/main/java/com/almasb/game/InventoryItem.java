@@ -1,16 +1,14 @@
 package com.almasb.game;
 
-
-import java.awt.*;
-import javafx.scene.shape.Rectangle;
+import com.almasb.fxgl.texture.Texture;
 
 
 public class InventoryItem {
     private String name;
     private int count;
-    private Rectangle icon;
+    private Texture icon;
 
-    public InventoryItem(String name, int count, Rectangle icon) {
+    public InventoryItem(String name, int count, Texture icon) {
         this.name = name;
         this.count = count;
         this.icon = icon;
@@ -19,6 +17,6 @@ public class InventoryItem {
     // getters/setters
     public String getName() { return name; }
     public int getCount() { return count; }
-    public Rectangle getIcon() { return icon; }
+    public Texture getIcon() { return icon; }
     public void setCount(int count) { this.count = count; }
 }
