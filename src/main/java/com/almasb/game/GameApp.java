@@ -92,6 +92,9 @@ public class GameApp extends GameApplication {
 
             @Override
             protected void onActionBegin() {
+                //Ignore if the game hasn't started yet
+                if (player == null) return;
+
                 double worldX = input.getMouseXWorld();
                 double worldY = input.getMouseYWorld();
 
@@ -147,6 +150,9 @@ public class GameApp extends GameApplication {
         input.addAction(new UserAction("Place") {
             @Override
             protected void onActionBegin() {
+                //Ignore if the game hasn't started yet
+                if (player == null) return;
+
                 //Do nothing if no inventory slot is selected
                 if (selectedSlotIndex == -1)
                     return;
