@@ -19,6 +19,7 @@ public class ItemComponent extends Component {
         this.count = count;
         this.icon=icon;
     }
+
     @Override
     public void onUpdate(double tpf) {
         FXGL.onCollisionBegin(EntityType.ITEM, EntityType.ITEM, (item1,item2)->{

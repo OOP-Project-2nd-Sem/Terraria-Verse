@@ -11,7 +11,6 @@ import com.almasb.fxgl.physics.BoundingShape;
 import com.almasb.fxgl.physics.HitBox;
 import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
-import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
@@ -33,6 +32,7 @@ public class GameFactory implements EntityFactory {
                 .collidable()
                 .build();
     }
+
     @Spawns("background")
     public Entity newBackground(SpawnData data) {
         return entityBuilder()
@@ -41,6 +41,7 @@ public class GameFactory implements EntityFactory {
                 .with(new IrremovableComponent())
                 .build();
     }
+
     @Spawns("menu background")
     public Entity newMenuBackground(SpawnData data) {
         return entityBuilder()
@@ -48,12 +49,14 @@ public class GameFactory implements EntityFactory {
                 .zIndex(-1)
                 .build();
     }
+
     @Spawns("grass")
     public Entity newGrass(SpawnData data) {
         return FXGL.entityBuilder(data)
                 .type(EntityType.BLOCK)
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(new PhysicsComponent())
+                .with("mine_time", 0.5)
                 .collidable()
                 .build();
     }
@@ -64,9 +67,11 @@ public class GameFactory implements EntityFactory {
                 .type(EntityType.BLOCK)
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(new PhysicsComponent())
+                .with("mine_time", 2.5)
                 .collidable()
                 .build();
     }
+
     @Spawns("item")
     public Entity newItem(SpawnData data) {
         PhysicsComponent physics = new PhysicsComponent();

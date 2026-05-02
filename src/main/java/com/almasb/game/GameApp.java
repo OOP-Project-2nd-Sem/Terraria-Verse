@@ -7,9 +7,7 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.SpawnData;
 import com.almasb.fxgl.input.Input;
 import com.almasb.fxgl.input.UserAction;
-import com.almasb.game.InventoryItem;
 import javafx.geometry.Pos;
-import javafx.scene.image.ImageView;
 import javafx.scene.control.Label;
 import com.almasb.fxgl.time.TimerAction;
 import javafx.geometry.Rectangle2D;
@@ -24,16 +22,11 @@ import javafx.scene.paint.Color;
 import java.awt.*;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Collections;
-import javafx.geometry.Point2D;
-import javafx.scene.input.MouseButton;
 import javafx.scene.control.Button;
-import javafx.event.ActionEvent;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import javafx.scene.layout.VBox;
 import javafx.scene.control.TextField;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
@@ -48,10 +41,6 @@ public class GameApp extends GameApplication {
     protected void initSettings(GameSettings settings) {
         settings.setWidth(16 * 80);
         settings.setHeight(16 * 60);
-    }
-
-    @Override
-    protected void initGame() {
     }
 
     @Override
@@ -106,22 +95,48 @@ public class GameApp extends GameApplication {
                 double worldX = input.getMouseXWorld();
                 double worldY = input.getMouseYWorld();
 
+                double maxRange = 2 * 16;
+                double distance = player.getCenter().distance(worldX, worldY);
+
+                //Do not mine blocks if they are too far
+                if(distance > maxRange)
+                    return;
+
+                //A rectangle to detect minable blocks because looking for an Entity at a single point can be unreliable
                 Rectangle2D mouseBounds = new Rectangle2D(worldX, worldY, 1, 1);
 
-                timer = FXGL.getGameTimer().runOnceAfter(() -> {
-                    for (Entity e : FXGL.getGameWorld().getEntitiesInRange(mouseBounds)) {
-                        if (e.isType(EntityType.BLOCK)) {
-                            spawn("item", new SpawnData(e.getX(), e.getY())
-                                    .put("width", 10)
-                                    .put("height", 10)
-                                    .put("count", 1)
-                                    .put("color", Color.BROWN));
-                            e.removeFromWorld();
-                        }
+                final Entity blockToMine;
+                Entity foudBlock = null;
+
+                //Find the first minable block
+                for(Entity e : FXGL.getGameWorld().getEntitiesInRange(mouseBounds)) {
+                    if (e.isType(EntityType.BLOCK)) {
+                        foudBlock = e;
+                        break;
                     }
-                }, Duration.seconds(2));
+                }
+
+                blockToMine = foudBlock;
+
+                //Do not mine if not minable block is found
+                if (blockToMine == null)
+                    return;
+
+                //Set the default value of mine time to 2.0 if the Entity does not have the property of "mine_time"
+                double mineTime = blockToMine.getProperties().exists("mine_time") ? blockToMine.getDouble("mine_time") : 2.0;
+
+                //Only execute after a duration of mineTime has passed
+                timer = FXGL.getGameTimer().runOnceAfter(() -> {
+                    spawn("item", new SpawnData(blockToMine.getX(), blockToMine.getY())
+                            .put("width", 10)
+                            .put("height", 10)
+                            .put("count", 1)
+                            .put("color", Color.BROWN));
+                    blockToMine.removeFromWorld();
+                }, Duration.seconds(mineTime));
             }
 
+            //Reset the timer after user release the primary button
             @Override
             protected void onActionEnd() {
                 if (timer != null)
@@ -135,6 +150,7 @@ public class GameApp extends GameApplication {
                 inventoryRoot.setVisible(!inventoryRoot.isVisible());
             }
         }, KeyCode.E);
+
         input.addAction(new UserAction("Get grass") {
             @Override
             protected void onActionBegin() {
@@ -143,6 +159,7 @@ public class GameApp extends GameApplication {
                 refreshInventory();
             }
         }, KeyCode.F);
+
         input.addAction(new UserAction("Get stone") {
             @Override
             protected void onActionBegin() {
@@ -174,6 +191,7 @@ public class GameApp extends GameApplication {
             refreshInventory();
         });
     }
+
     private StackPane createSlot(int size, int index) {
         StackPane slot = new StackPane();
         slot.setPrefSize(size, size);
@@ -217,6 +235,7 @@ public class GameApp extends GameApplication {
 
         return slot;
     }
+
     private void initInventory(){
 
         inventoryRoot = new GridPane(4,4);
@@ -241,6 +260,7 @@ public class GameApp extends GameApplication {
 
         getGameScene().addUINode(inventoryRoot);
     }
+
     private void refreshInventory() {
         inventoryRoot.getChildren().clear();
 
@@ -254,6 +274,7 @@ public class GameApp extends GameApplication {
             }
         }
     }
+
     private void showMainMenu() {
         FXGL.getGameWorld().addEntityFactory(new GameFactory());
         background= spawn("menu background");
@@ -270,6 +291,7 @@ public class GameApp extends GameApplication {
 
         FXGL.getGameScene().addUINode(menu);
     }
+
     private void showCharacterCreation() {
         FXGL.getGameScene().clearUINodes();
 
@@ -293,6 +315,7 @@ public class GameApp extends GameApplication {
         menu.getChildren().addAll(nameField, create);
         FXGL.getGameScene().addUINode(menu);
     }
+
     private void showCharacterSelection() {
         FXGL.getGameScene().clearUINodes();
 
@@ -313,6 +336,7 @@ public class GameApp extends GameApplication {
 
         FXGL.getGameScene().addUINode(menu);
     }
+
     private void showWorldSelection(String characterName) {
         FXGL.getGameScene().clearUINodes();
 
@@ -328,6 +352,7 @@ public class GameApp extends GameApplication {
         menu.getChildren().add(world1);
         FXGL.getGameScene().addUINode(menu);
     }
+
     private void startGame(String character, String world) {
         FXGL.getGameScene().clearUINodes();
         FXGL.getGameScene().getViewport().setBounds(-1500, 0, 1500, FXGL.getAppHeight());
@@ -344,7 +369,6 @@ public class GameApp extends GameApplication {
         );
         initInventory();
     }
-
 
     private void saveCharacter(String name) {
         try {
