@@ -144,6 +144,74 @@ public class GameApp extends GameApplication {
             }
         }, MouseButton.PRIMARY);
 
+        input.addAction(new UserAction("Place") {
+            @Override
+            protected void onActionBegin() {
+                //Do nothing if no inventory slot is selected
+                if (selectedSlotIndex == -1)
+                    return;
+
+                double worldX = input.getMouseXWorld();
+                double worldY = input.getMouseYWorld();
+
+                double maxRange = 2 * 16;
+                double distance = player.getCenter().distance(worldX, worldY);
+
+                //Do nothing if the distance is greater than the range allowed
+                if (distance > maxRange)
+                    return;
+
+                Rectangle2D mouseBounds = new Rectangle2D(worldX, worldY, 1, 1);
+
+                //Do not allow to place a block if there is already a block placed there
+                for(Entity e : FXGL.getGameWorld().getEntitiesInRange(mouseBounds)) {
+                    if (e.isType(EntityType.BLOCK))
+                        return;
+                }
+
+                //Find the snapped to grid coordinates on the map to perfectly place the block
+                int row = (int) Math.floor(worldX/16);
+                int col = (int) Math.floor(worldY/16);
+                int snappedX = row * 16;
+                int snappedY = col * 16;
+
+                Rectangle2D targetCell = new Rectangle2D(snappedX, snappedY, 16, 16);
+                Rectangle2D playerBounds = new Rectangle2D(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+
+                //Do not allow to place the block on the same block the player is standing on
+                if (targetCell.intersects(playerBounds))
+                    return;
+
+                List<InventoryItem> inv = player.getComponent(PlayerComponent.class).getInventory();
+                InventoryItem itemToPlace = inv.get(selectedSlotIndex);
+
+                //If the inventory slot selected do not have an item
+                if(itemToPlace == null)
+                    return;
+
+                String itemName = itemToPlace.getName().toLowerCase();
+                String spawnType = "";
+
+                if (itemName.contains("grass"))
+                    spawnType = "grass";
+                else if (itemName.contains("stone"))
+                    spawnType = "stone";
+                else
+                    return;
+
+                FXGL.spawn(spawnType, new SpawnData(snappedX, snappedY).put("width", 16).put("height", 16));
+
+                //Decrement the blocks from inventory
+                itemToPlace.setCount(itemToPlace.getCount() - 1);
+                if(itemToPlace.getCount() <= 0) {
+                    inv.set(selectedSlotIndex, null);
+                    selectedSlotIndex = -1;
+                }
+
+                refreshInventory();
+            }
+        }, MouseButton.SECONDARY);
+
         input.addAction(new UserAction("Toggle Inventory") {
             @Override
             protected void onActionBegin() {

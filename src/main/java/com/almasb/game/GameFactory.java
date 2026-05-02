@@ -54,6 +54,7 @@ public class GameFactory implements EntityFactory {
     public Entity newGrass(SpawnData data) {
         return FXGL.entityBuilder(data)
                 .type(EntityType.BLOCK)
+                .view(FXGL.texture("textures_02_08_25.png").subTexture(new javafx.geometry.Rectangle2D(20*16, 22*16, 16, 16)))
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(new PhysicsComponent())
                 .with("mine_time", 0.5)
@@ -65,6 +66,7 @@ public class GameFactory implements EntityFactory {
     public Entity newStone(SpawnData data) {
         return FXGL.entityBuilder(data)
                 .type(EntityType.BLOCK)
+                .view(FXGL.texture("textures_02_08_25.png").subTexture((new javafx.geometry.Rectangle2D(21*16, 22*16, 16, 16))))
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(new PhysicsComponent())
                 .with("mine_time", 2.5)
