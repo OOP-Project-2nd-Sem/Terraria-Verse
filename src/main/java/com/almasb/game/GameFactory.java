@@ -1,6 +1,5 @@
 package com.almasb.game;
 
-import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.dsl.views.ScrollingBackgroundView;
 import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.EntityFactory;
@@ -11,6 +10,7 @@ import com.almasb.fxgl.physics.BoundingShape;
 import com.almasb.fxgl.physics.HitBox;
 import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
+import com.almasb.fxgl.texture.Texture;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
@@ -24,7 +24,7 @@ public class GameFactory implements EntityFactory {
         PhysicsComponent physics = new PhysicsComponent();
         physics.setBodyType(BodyType.DYNAMIC);
 
-        return FXGL.entityBuilder(data)
+        return entityBuilder(data)
                 .type(EntityType.PLAYER)
                 .viewWithBBox(new Rectangle(10, 10, Color.RED))
                 .with(physics)
@@ -50,45 +50,45 @@ public class GameFactory implements EntityFactory {
                 .build();
     }
 
-    @Spawns("grass")
-    public Entity newGrass(SpawnData data) {
-        return FXGL.entityBuilder(data)
+    private Entity createBlock(SpawnData data, Texture blockTex, double minetime) {
+        return entityBuilder(data)
                 .type(EntityType.BLOCK)
-                .view(FXGL.texture("textures_02_08_25.png").subTexture(new javafx.geometry.Rectangle2D(20*16, 22*16, 16, 16)))
+                .view(blockTex)
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(new PhysicsComponent())
-                .with("mine_time", 0.5)
+                .with("mine_time", minetime)
                 .collidable()
                 .build();
     }
 
+    @Spawns("grass")
+    public Entity newGrass(SpawnData data) {
+        return createBlock(data, Config.GRASS_TEX, 0.5);
+    }
+
     @Spawns("stone")
     public Entity newStone(SpawnData data) {
-        return FXGL.entityBuilder(data)
-                .type(EntityType.BLOCK)
-                .view(FXGL.texture("textures_02_08_25.png").subTexture(new javafx.geometry.Rectangle2D(21*16, 22*16, 16, 16)))
-                .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
-                .with(new PhysicsComponent())
-                .with("mine_time", 2.5)
-                .collidable()
-                .build();
+        return createBlock(data, Config.STONE_TEX, 2.5);
     }
 
     @Spawns("item")
     public Entity newItem(SpawnData data) {
         String blockType = data.get("type");
 
-        int row = 0, col = 0;
+        Texture blockTex = Config.GRASS_TEX;
 
-        if (blockType.equals("grass")) {row = 20; col = 22;}
-        else if (blockType.equals("stone")) {row = 21; col =22;}
+        if (blockType.equals("grass")) {blockTex = Config.GRASS_TEX;}
+        else if (blockType.equals("stone")) {blockTex = Config.STONE_TEX;}
+
+        Texture worldView = blockTex.copy();
+        Texture inventoyView = blockTex.copy();
 
         PhysicsComponent physics = new PhysicsComponent();
         physics.setBodyType(BodyType.DYNAMIC);
-        return FXGL.entityBuilder(data)
-                .with(new ItemComponent(blockType, data.get("count"), FXGL.texture("textures_02_08_25.png").subTexture(new javafx.geometry.Rectangle2D(row*16, col*16, 16, 16))))
+        return entityBuilder(data)
+                .with(new ItemComponent(blockType, data.get("count"), inventoyView))
                 .type(EntityType.ITEM)
-                .view(FXGL.texture("textures_02_08_25.png").subTexture(new javafx.geometry.Rectangle2D(row*16, col*16, 16, 16)))
+                .view(worldView)
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(physics)
                 .collidable()

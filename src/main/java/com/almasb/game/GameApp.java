@@ -8,6 +8,7 @@ import com.almasb.fxgl.entity.SpawnData;
 import com.almasb.fxgl.input.Input;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.texture.Texture;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import com.almasb.fxgl.time.TimerAction;
@@ -38,8 +39,8 @@ public class GameApp extends GameApplication {
 
     @Override
     protected void initSettings(GameSettings settings) {
-        settings.setWidth(16 * 80);
-        settings.setHeight(16 * 60);
+        settings.setWidth(Config.TILE_SIZE * 80);
+        settings.setHeight(Config.TILE_SIZE * 60);
     }
 
     @Override
@@ -97,11 +98,8 @@ public class GameApp extends GameApplication {
                 double worldX = input.getMouseXWorld();
                 double worldY = input.getMouseYWorld();
 
-                double maxRange = 2 * 16;
-                double distance = player.getCenter().distance(worldX, worldY);
-
                 //Do not mine blocks if they are too far
-                if(distance > maxRange)
+                if(!isWithinReach(worldX, worldY))
                     return;
 
                 //A rectangle to detect minable blocks because looking for an Entity at a single point can be unreliable
@@ -161,11 +159,8 @@ public class GameApp extends GameApplication {
                 double worldX = input.getMouseXWorld();
                 double worldY = input.getMouseYWorld();
 
-                double maxRange = 2 * 16;
-                double distance = player.getCenter().distance(worldX, worldY);
-
                 //Do nothing if the distance is greater than the range allowed
-                if (distance > maxRange)
+                if (!isWithinReach(worldX, worldY))
                     return;
 
                 Rectangle2D mouseBounds = new Rectangle2D(worldX, worldY, 1, 1);
@@ -177,12 +172,9 @@ public class GameApp extends GameApplication {
                 }
 
                 //Find the snapped to grid coordinates on the map to perfectly place the block
-                int row = (int) Math.floor(worldX/16);
-                int col = (int) Math.floor(worldY/16);
-                int snappedX = row * 16;
-                int snappedY = col * 16;
+                Point2D snappedCoordinates = snapCoordinates(worldX, worldY);
 
-                Rectangle2D targetCell = new Rectangle2D(snappedX, snappedY, 16, 16);
+                Rectangle2D targetCell = new Rectangle2D(snappedCoordinates.getX(), snappedCoordinates.getY(), Config.TILE_SIZE, Config.TILE_SIZE);
                 Rectangle2D playerBounds = new Rectangle2D(player.getX(), player.getY(), player.getWidth(), player.getHeight());
 
                 //Do not allow to place the block on the same block the player is standing on
@@ -206,7 +198,7 @@ public class GameApp extends GameApplication {
                 else
                     return;
 
-                FXGL.spawn(spawnType, new SpawnData(snappedX, snappedY).put("width", 16).put("height", 16));
+                FXGL.spawn(spawnType, new SpawnData(snappedCoordinates.getX(), snappedCoordinates.getY()).put("width", Config.TILE_SIZE).put("height", Config.TILE_SIZE));
 
                 //Decrement the blocks from inventory
                 itemToPlace.setCount(itemToPlace.getCount() - 1);
@@ -244,6 +236,21 @@ public class GameApp extends GameApplication {
 
             item.removeFromWorld();
             refreshInventory();
+        });
+
+        FXGL.onCollisionBegin(EntityType.ITEM, EntityType.ITEM, (item1,item2)->{
+            ItemComponent comp1 = item1.getComponent(ItemComponent.class);
+            ItemComponent comp2 = item2.getComponent(ItemComponent.class);
+
+            if(comp1.getName().equals(comp2.getName())) {
+                spawn("item", new SpawnData(item1.getX(), item1.getY())
+                        .put("type", comp1.getName())
+                        .put("width", 10)
+                        .put("height", 10)
+                        .put("count", comp1.getCount() + comp2.getCount()));
+                item1.removeFromWorld();
+                item2.removeFromWorld();
+            }
         });
     }
 
@@ -298,16 +305,7 @@ public class GameApp extends GameApplication {
         inventoryRoot.setVgap(4);
         inventoryRoot.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-padding: 10;");
 
-        int COLS = 10;
-        int ROWS = 4;
-        int SLOT_SIZE = 50;
-
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLS; col++) {
-                StackPane slot = createSlot(SLOT_SIZE, row * COLS + col);
-                inventoryRoot.add(slot, col, row);
-            }
-        }
+        refreshInventory();
 
         inventoryRoot.setTranslateX(25);
         inventoryRoot.setTranslateY(25);
@@ -319,13 +317,10 @@ public class GameApp extends GameApplication {
     private void refreshInventory() {
         inventoryRoot.getChildren().clear();
 
-        int COLS = 10;
-        int ROWS = 4;
-        int SLOT_SIZE = 50;
-
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLS; col++) {
-                inventoryRoot.add(createSlot(SLOT_SIZE, row * COLS + col), col, row);
+        for (int row = 0; row < Config.INVENTORY_ROWS; row++) {
+            for (int col = 0; col < Config.INVENTORY_COLS; col++) {
+                int index = row * Config.INVENTORY_COLS + col;
+                inventoryRoot.add(createSlot(Config.INVENTORY_SLOT_SIZE, index), col, row);
             }
         }
     }
@@ -445,6 +440,18 @@ public class GameApp extends GameApplication {
         } catch (IOException e) {
             return new ArrayList<>();
         }
+    }
+
+    private boolean isWithinReach(double worldX, double worldY) {
+        if (player == null) return false;
+        double maxRange = 2 * Config.TILE_SIZE;
+        return player.getCenter().distance(worldX, worldY) <= maxRange;
+    }
+
+    private Point2D snapCoordinates(double worldX, double worldY) {
+        int snappedX = (int) Math.floor(worldX / Config.TILE_SIZE) * Config.TILE_SIZE;
+        int snappedY = (int) Math.floor(worldY / Config.TILE_SIZE) * Config.TILE_SIZE;
+        return new Point2D(snappedX, snappedY);
     }
 
     public static void main(String[] args) {

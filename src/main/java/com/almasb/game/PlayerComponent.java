@@ -15,7 +15,7 @@ public class PlayerComponent extends Component {
     private boolean jumping = false;
 
     // PlayerComponent.java mein
-    private List<InventoryItem> inventory = new ArrayList<>(Collections.nCopies(40, null));
+    private List<InventoryItem> inventory = new ArrayList<>(Collections.nCopies(Config.MAX_INVENTORY_SIZE, null));
 // 40 slots (Terraria style 4 rows x 10 cols)
 
     public List<InventoryItem> getInventory() { return inventory; }
