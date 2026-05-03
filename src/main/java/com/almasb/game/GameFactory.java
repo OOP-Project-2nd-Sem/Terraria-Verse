@@ -11,6 +11,7 @@ import com.almasb.fxgl.physics.HitBox;
 import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
 import com.almasb.fxgl.texture.Texture;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
@@ -71,27 +72,94 @@ public class GameFactory implements EntityFactory {
         return createBlock(data, Config.STONE_TEX, 2.5);
     }
 
-    @Spawns("item")
-    public Entity newItem(SpawnData data) {
-        String blockType = data.get("type");
+     @Spawns("item")
+     public Entity newItem(SpawnData data) {
+         String itemType = data.get("type");
 
-        Texture blockTex = Config.GRASS_TEX;
+         // Get texture based on item type
+         Texture itemTex = getItemTexture(itemType);
+         Texture worldView = itemTex.copy();
+         Texture inventoryView = itemTex.copy();
 
-        if (blockType.equals("grass")) {blockTex = Config.GRASS_TEX;}
-        else if (blockType.equals("stone")) {blockTex = Config.STONE_TEX;}
+         PhysicsComponent physics = new PhysicsComponent();
+         physics.setBodyType(BodyType.DYNAMIC);
+         return entityBuilder(data)
+                 .with(new ItemComponent(itemType, data.get("count"), inventoryView))
+                 .type(EntityType.ITEM)
+                 .view(worldView)
+                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
+                 .with(physics)
+                 .collidable()
+                 .build();
+     }
 
-        Texture worldView = blockTex.copy();
-        Texture inventoyView = blockTex.copy();
+     private Texture getItemTexture(String itemType) {
+         // Return appropriate texture based on item type
+         if (itemType.equalsIgnoreCase("grass") || itemType.equalsIgnoreCase("Grass")) {
+             return Config.GRASS_TEX;
+         } else if (itemType.equalsIgnoreCase("stone") || itemType.equalsIgnoreCase("Stone")) {
+             return Config.STONE_TEX;
+         } else if (itemType.equalsIgnoreCase("dirt") || itemType.equalsIgnoreCase("Dirt")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.DIRT_BLOCK.col * 16, Config.BlockType.DIRT_BLOCK.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("coal") || itemType.equalsIgnoreCase("Coal")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.COAL_BLOCK_1.col * 16, Config.BlockType.COAL_BLOCK_1.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("iron") || itemType.equalsIgnoreCase("Iron")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.IRON_BLOCK_1.col * 16, Config.BlockType.IRON_BLOCK_1.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("diamond") || itemType.equalsIgnoreCase("Diamond")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.DIAMOND_BLOCK_1.col * 16, Config.BlockType.DIAMOND_BLOCK_1.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("gold") || itemType.equalsIgnoreCase("Gold")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.GOLD_BLOCK.col * 16, Config.BlockType.GOLD_BLOCK.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("emerald") || itemType.equalsIgnoreCase("Emerald")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.EMERALD_BLOCK.col * 16, Config.BlockType.EMERALD_BLOCK.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("lapis") || itemType.equalsIgnoreCase("Lapis")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.LAPIS_LAZULI_BLOCK.col * 16, Config.BlockType.LAPIS_LAZULI_BLOCK.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("wood") || itemType.equalsIgnoreCase("Wood")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.OAK_TREE_BOTTOM.col * 16, Config.BlockType.OAK_TREE_BOTTOM.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("leaves") || itemType.equalsIgnoreCase("Leaves")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.LEAF_VARIANT_1.col * 16, Config.BlockType.LEAF_VARIANT_1.row * 16, 16, 16));
+         }
 
-        PhysicsComponent physics = new PhysicsComponent();
-        physics.setBodyType(BodyType.DYNAMIC);
-        return entityBuilder(data)
-                .with(new ItemComponent(blockType, data.get("count"), inventoyView))
-                .type(EntityType.ITEM)
-                .view(worldView)
-                .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
-                .with(physics)
-                .collidable()
-                .build();
-    }
+         // Default to grass texture
+         return Config.GRASS_TEX;
+     }
+     @Spawns("block")
+     public Entity newBlock(SpawnData data) {
+         // Retrieve the Enum value passed during the spawn() call
+         Config.BlockType type = data.get("type");
+
+         // Determine mine time based on block type
+         double mineTime = 1.5; // Default
+         if (type.toString().contains("STONE") || type.toString().contains("ORE") || type.toString().contains("BLOCK")) {
+             mineTime = 2.5;
+         } else if (type.toString().contains("DIRT")) {
+             mineTime = 0.5;
+         } else if (type.toString().contains("GRASS")) {
+             mineTime = 0.6;
+         } else if (type.toString().contains("LEAF") || type.toString().contains("TREE")) {
+             mineTime = 0.3;
+         }
+
+         return entityBuilder(data)
+                 // Use the math we established earlier
+                 .view(texture("textures_02_08_25.png")
+                         .subTexture(new Rectangle2D(type.col * 16, type.row * 16, 16, 16)))
+                 .bbox(new HitBox(BoundingShape.box(16, 16)))
+                 .with(new PhysicsComponent())
+                 .with("mine_time", mineTime)
+                 .type(EntityType.BLOCK)
+                 .collidable()
+                 .build();
+     }
 }
+
+
+

@@ -125,12 +125,13 @@ public class GameApp extends GameApplication {
                 //Set the default value of mine time to 2.0 if the Entity does not have the property of "mine_time"
                 double mineTime = blockToMine.getProperties().exists("mine_time") ? blockToMine.getDouble("mine_time") : 2.0;
 
-                String spawnName = blockToMine.getString("type");
+                Config.BlockType blockType = blockToMine.getObject("type");
+                String itemName = getItemNameFromBlockType(blockType);
 
                 //Only execute after a duration of mineTime has passed
                 timer = FXGL.getGameTimer().runOnceAfter(() -> {
                     spawn("item", new SpawnData(blockToMine.getX(), blockToMine.getY())
-                            .put("type", spawnName)
+                            .put("type", itemName)
                             .put("width", 10)
                             .put("height", 10)
                             .put("count", 1));
@@ -405,17 +406,18 @@ public class GameApp extends GameApplication {
 
     private void startGame(String character, String world) {
         FXGL.getGameScene().clearUINodes();
-        FXGL.getGameScene().getViewport().setBounds(-1500, 0, 1500, FXGL.getAppHeight());
+        FXGL.getGameScene().getViewport().setBounds(0, 0, 80 * 16, 60 * 16);
         // load world + player
-        FXGL.setLevelFromMap("map1.tmx");
+        generateMap();
+        // Player spawns on the surface (grass layer) in the center of the map
+        player = spawn("player", new SpawnData(40 * 16, (20 - 2) * 16));
         background.removeFromWorld();
         spawn("background");
-        player = FXGL.getGameWorld().getSingleton(EntityType.PLAYER);
 
         FXGL.getGameScene().getViewport().bindToEntity(
                 player,
-                FXGL.getAppWidth() / 2,
-                FXGL.getAppHeight() / 2
+                (int)(FXGL.getAppWidth() / 2.0),
+                (int)(FXGL.getAppHeight() / 2.0)
         );
         initInventory();
     }
@@ -452,6 +454,128 @@ public class GameApp extends GameApplication {
         int snappedX = (int) Math.floor(worldX / Config.TILE_SIZE) * Config.TILE_SIZE;
         int snappedY = (int) Math.floor(worldY / Config.TILE_SIZE) * Config.TILE_SIZE;
         return new Point2D(snappedX, snappedY);
+    }
+
+    // Convert BlockType to item name string for inventory
+    private String getItemNameFromBlockType(Config.BlockType blockType) {
+        String name = blockType.toString();
+
+        if (name.contains("GRASS")) return "Grass";
+        if (name.contains("DIRT")) return "Dirt";
+        if (name.contains("STONE") || name.contains("SLATE") || name.contains("GENERIC")) return "Stone";
+        if (name.contains("COAL")) return "Coal";
+        if (name.contains("IRON")) return "Iron";
+        if (name.contains("DIAMOND")) return "Diamond";
+        if (name.contains("GOLD")) return "Gold";
+        if (name.contains("EMERALD")) return "Emerald";
+        if (name.contains("LAPIS")) return "Lapis";
+        if (name.contains("TREE") || name.contains("WOOD")) return "Wood";
+        if (name.contains("LEAF")) return "Leaves";
+        if (name.contains("BED_ROCK")) return "Bedrock";
+
+        return "Block";
+    }
+
+    public void generateMap() {
+        int mapWidth = 80;
+        int mapHeight = 60;
+        int surfaceHeight = 20; // Height where grass appears
+        int tileSize = 16;
+
+        // Ground generation - layers of grass/dirt/stone
+        for (int x = 0; x < mapWidth; x++) {
+            for (int y = surfaceHeight; y < mapHeight; y++) {
+                double posX = x * tileSize;
+                double posY = y * tileSize;
+
+                Config.BlockType type;
+                int depthFromSurface = y - surfaceHeight;
+
+                // Surface grass (top layer)
+                if (depthFromSurface == 0) {
+                    type = Config.BlockType.GRASS_TOP_LAYER_1;
+                }
+                // Upper dirt layer (1-2 blocks)
+                else if (depthFromSurface == 1 || depthFromSurface == 2) {
+                    type = Config.BlockType.DIRT_BLOCK;
+                }
+                // Upper stone with common ores (coal, iron)
+                else if (depthFromSurface >= 3 && depthFromSurface < 15) {
+                    int rand = FXGL.random(0, 100);
+                    if (rand < 8) {
+                        type = Config.BlockType.IRON_BLOCK_1;
+                    } else if (rand < 12) {
+                        type = Config.BlockType.COAL_BLOCK_1;
+                    } else {
+                        type = Config.BlockType.GENERIC_STONE_1;
+                    }
+                }
+                // Middle stone with rarer ores (diamond, gold)
+                else if (depthFromSurface >= 15 && depthFromSurface < 35) {
+                    int rand = FXGL.random(0, 100);
+                    if (rand < 3) {
+                        type = Config.BlockType.DIAMOND_BLOCK_1;
+                    } else if (rand < 6) {
+                        type = Config.BlockType.GOLD_BLOCK;
+                    } else if (rand < 10) {
+                        type = Config.BlockType.COAL_BLOCK_1;
+                    } else {
+                        type = Config.BlockType.GENERIC_STONE_1;
+                    }
+                }
+                // Deep stone with rare ores (emerald, lapis)
+                else if (depthFromSurface >= 35 && depthFromSurface < 58) {
+                    int rand = FXGL.random(0, 100);
+                    if (rand < 2) {
+                        type = Config.BlockType.EMERALD_BLOCK;
+                    } else if (rand < 4) {
+                        type = Config.BlockType.LAPIS_LAZULI_BLOCK;
+                    } else if (rand < 6) {
+                        type = Config.BlockType.DIAMOND_BLOCK_1;
+                    } else {
+                        type = Config.BlockType.GENERIC_STONE_1;
+                    }
+                }
+                // Bedrock at the bottom
+                else {
+                    type = Config.BlockType.DARK_BED_ROCK_1;
+                }
+
+                spawn("block", new SpawnData(posX, posY).put("type", type));
+            }
+        }
+
+        // Generate trees scattered across the surface (on top of the grass)
+        generateTrees(mapWidth, surfaceHeight, tileSize);
+    }
+
+    private void generateTrees(int mapWidth, int surfaceHeight, int tileSize) {
+        // Trees spawn at roughly 12% density - only on the surface grass
+        for (int x = 0; x < mapWidth; x += 8) {
+            int randomOffset = FXGL.random(0, 7);
+            int treeX = x + randomOffset;
+
+            if (treeX < mapWidth && FXGL.random(0, 100) < 60) {
+                // Tree position - trunk sits on top of the grass block
+                double treePosX = treeX * tileSize;
+                double treePosY = (surfaceHeight - 2) * tileSize;  // On top of grass
+
+                // Spawn trunk (OAK_TREE_BOTTOM)
+                spawn("block", new SpawnData(treePosX, treePosY).put("type", Config.BlockType.OAK_TREE_BOTTOM));
+
+                // Spawn tree top (OAK_TREE_TOP) - one block above trunk
+                spawn("block", new SpawnData(treePosX, treePosY - tileSize).put("type", Config.BlockType.OAK_TREE_TOP));
+
+                // Spawn leaves around the tree top (but NOT above the surface)
+                // Layer 1 - 3 leaves at same height as tree top
+                spawn("block", new SpawnData(treePosX - tileSize, treePosY - tileSize).put("type", Config.BlockType.LEAF_VARIANT_1));
+                spawn("block", new SpawnData(treePosX + tileSize, treePosY - tileSize).put("type", Config.BlockType.LEAF_VARIANT_1));
+
+                // Layer 2 - 2 leaves slightly above
+                spawn("block", new SpawnData(treePosX - tileSize, treePosY - 2 * tileSize).put("type", Config.BlockType.LEAF_VARIANT_1));
+                spawn("block", new SpawnData(treePosX + tileSize, treePosY - 2 * tileSize).put("type", Config.BlockType.LEAF_VARIANT_1));
+            }
+        }
     }
 
     public static void main(String[] args) {
