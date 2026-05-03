@@ -332,7 +332,18 @@ public final class Config {
             this.col = col;
             this.row = row;
         }
+        public int getCol(){return col;}
+        public int getRow(){return row;}
 
+    }
+    public static Texture getTexture(BlockType blockType) {
+        return FXGL.texture("textures_02_08_25.png")
+                .subTexture(new Rectangle2D(
+                        blockType.getCol() * TILE_SIZE,
+                        blockType.getRow() * TILE_SIZE,
+                        TILE_SIZE,
+                        TILE_SIZE
+                ));
     }
 
     public static final Texture GRASS_TEX = FXGL.texture("textures_02_08_25.png").subTexture(new Rectangle2D(GRASS_TEX_ROW * TILE_SIZE, GRASS_TEX_COL * TILE_SIZE, TILE_SIZE, TILE_SIZE));

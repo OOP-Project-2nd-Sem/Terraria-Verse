@@ -95,44 +95,58 @@ public class GameApp extends GameApplication {
 
             @Override
             protected void onActionBegin() {
+                //Ignore if the game hasn't started yet
                 if (player == null) return;
 
                 double worldX = input.getMouseXWorld();
                 double worldY = input.getMouseYWorld();
 
-                if (!isWithinReach(worldX, worldY)) return;
+                //Do not mine blocks if they are too far
+                if(!isWithinReach(worldX, worldY))
+                    return;
 
+                //A rectangle to detect minable blocks because looking for an Entity at a single point can be unreliable
                 Rectangle2D mouseBounds = new Rectangle2D(worldX, worldY, 1, 1);
-                Entity blockToMine = null;
 
-                for (Entity e : FXGL.getGameWorld().getEntitiesInRange(mouseBounds)) {
+                final Entity blockToMine;
+                Entity foudBlock = null;
+
+                //Find the first minable block
+                for(Entity e : FXGL.getGameWorld().getEntitiesInRange(mouseBounds)) {
                     if (e.isType(EntityType.BLOCK)) {
-                        blockToMine = e;
+                        foudBlock = e;
                         break;
                     }
                 }
 
-                if (blockToMine == null) return;
+                blockToMine = foudBlock;
 
-                double mineTime = blockToMine.getProperties().exists("mine_time")
-                        ? blockToMine.getDouble("mine_time") : 2.0;
+                //Do not mine if not minable block is found
+                if (blockToMine == null)
+                    return;
 
-                String spawnName = blockToMine.getString("type");
-                Entity finalBlock = blockToMine;
+                //Set the default value of mine time to 2.0 if the Entity does not have the property of "mine_time"
+                double mineTime = blockToMine.getProperties().exists("mine_time") ? blockToMine.getDouble("mine_time") : 2.0;
 
+                Config.BlockType blockType = blockToMine.getObject("type");
+                String itemName = getItemNameFromBlockType(blockType);
+
+                //Only execute after a duration of mineTime has passed
                 timer = FXGL.getGameTimer().runOnceAfter(() -> {
-                    spawn("item", new SpawnData(finalBlock.getX(), finalBlock.getY())
-                            .put("type", spawnName)
+                    spawn("item", new SpawnData(blockToMine.getX(), blockToMine.getY())
+                            .put("type", itemName)
                             .put("width", 10)
                             .put("height", 10)
                             .put("count", 1));
-                    finalBlock.removeFromWorld();
+                    blockToMine.removeFromWorld();
                 }, Duration.seconds(mineTime));
             }
 
+            //Reset the timer after user release the primary button
             @Override
             protected void onActionEnd() {
-                if (timer != null) timer.expire();
+                if (timer != null)
+                    timer.expire();
             }
         }, MouseButton.PRIMARY);
 
