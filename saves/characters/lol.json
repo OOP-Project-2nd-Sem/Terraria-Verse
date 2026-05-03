@@ -1,0 +1,89 @@
+{
+  "name": "lol",
+  "skinColor": "#FFD700",
+  "hairColor": "#8B4513",
+  "shirtColor": "#4169E1",
+  "hairStyle": 0,
+  "health": 100,
+  "maxHealth": 100,
+  "mana": 20,
+  "maxMana": 20,
+  "inventory": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ],
+  "hotbar": [
+    {
+      "name": "Grass",
+      "count": 1
+    },
+    {
+      "name": "Dirt",
+      "count": 2
+    },
+    {
+      "name": "Stone",
+      "count": 4
+    },
+    {
+      "name": "Iron",
+      "count": 1
+    },
+    {
+      "name": "Wood",
+      "count": 1
+    },
+    {
+      "name": "Leaves",
+      "count": 1
+    },
+    null,
+    null,
+    null,
+    null
+  ],
+  "armor": [
+    null,
+    null,
+    null,
+    null
+  ]
+}
