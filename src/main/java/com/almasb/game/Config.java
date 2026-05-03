@@ -22,4 +22,5 @@ public final class Config {
 
     public static final Texture GRASS_TEX = FXGL.texture("textures_02_08_25.png").subTexture(new Rectangle2D(GRASS_TEX_ROW * TILE_SIZE, GRASS_TEX_COL * TILE_SIZE, TILE_SIZE, TILE_SIZE));
     public static final Texture STONE_TEX = FXGL.texture("textures_02_08_25.png").subTexture(new Rectangle2D(STONE_TEX_ROW * TILE_SIZE, STONE_TEX_COL * TILE_SIZE, TILE_SIZE, TILE_SIZE));
+    public static final String SAVE_DIR = "saves/characters/";
 }

@@ -20,6 +20,12 @@
             <artifactId>fxgl</artifactId>
             <version>25</version>
         </dependency>
+        <!-- Maven -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
     </dependencies>
 
 </project>
