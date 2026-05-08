@@ -99,7 +99,7 @@ public class GameFactory implements EntityFactory {
     private Entity createBlock(SpawnData data, Texture blockTex, double minetime) {
         return entityBuilder(data)
                 .type(EntityType.BLOCK)
-                .view(blockTex)
+                .view(blockTex.copy())
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
                 .with(new PhysicsComponent())
                 .with("mine_time", minetime)
@@ -196,7 +196,7 @@ public class GameFactory implements EntityFactory {
          return entityBuilder(data)
                  // Use the math we established earlier
                  .view(texture("textures_02_08_25.png")
-                         .subTexture(new Rectangle2D(type.col * 16, type.row * 16, 16, 16)))
+                         .subTexture(new Rectangle2D(type.col * 16, type.row * 16, 16, 16)).copy())
                  .bbox(new HitBox(BoundingShape.box(16, 16)))
                  .with(new PhysicsComponent())
                  .with("mine_time", mineTime)
