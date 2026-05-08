@@ -22,7 +22,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import java.util.List;
-import java.util.ArrayList;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
@@ -276,6 +275,12 @@ public class GameApp extends GameApplication {
                 item2.removeFromWorld();
             }
         });
+
+        FXGL.onCollisionBegin(EntityType.PLAYER, EntityType.ENEMY, (player, enemy) -> {
+            double knowckbackDir = enemy.getX() > player.getX() ? -200: 200;
+
+            player.getComponent(PlayerComponent.class).knockback(knowckbackDir);
+        });
     }
 
     // ─── Inventory UI ──────────────────────────────────────────────────────────
@@ -507,6 +512,10 @@ public class GameApp extends GameApplication {
         generateMap();
         // Player spawns on the surface (grass layer) in the center of the map
         player = spawn("player", new SpawnData(40 * 16, (20 - 2) * 16));
+
+        //Test enemy
+        spawn("enemy", new SpawnData(player.getX() + 300, player.getY() - 100).put("type", EnemyType.SLIME));
+
         background.removeFromWorld();
         spawn("background");
 

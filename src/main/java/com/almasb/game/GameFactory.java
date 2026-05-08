@@ -10,6 +10,7 @@ import com.almasb.fxgl.physics.BoundingShape;
 import com.almasb.fxgl.physics.HitBox;
 import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
+import com.almasb.fxgl.physics.box2d.dynamics.FixtureDef;
 import com.almasb.fxgl.texture.Texture;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.paint.Color;
@@ -24,12 +25,52 @@ public class GameFactory implements EntityFactory {
     public Entity newPlayer(SpawnData data) {
         PhysicsComponent physics = new PhysicsComponent();
         physics.setBodyType(BodyType.DYNAMIC);
+        physics.setFixtureDef(new FixtureDef().friction(0f)); //Make the friction 0 to reduce the chances of some bugs and inconsistencies
 
         return entityBuilder(data)
                 .type(EntityType.PLAYER)
                 .viewWithBBox(new Rectangle(10, 10, Color.RED))
                 .with(physics)
                 .with(new PlayerComponent())
+                .collidable()
+                .build();
+    }
+
+    @Spawns("enemy")
+    public Entity newEnemy(SpawnData data) {
+        EnemyType type = data.get("type");
+
+        //Default health and speed
+        int health = 30;
+        double speed = 40;
+        // Texture texture =
+
+        switch (type) {
+            case SLIME:
+                health = 20;
+                speed = 40;
+                //texture =
+                break;
+            case ZOMBIE:
+                health = 50;
+                speed = 25;
+                //texture =
+                break;
+        }
+
+        //If a custom health and speed is passed through spawnData
+        if (data.hasKey("health")) health = data.get("health");
+        if (data.hasKey("speed")) speed = data.get("speed");
+
+        PhysicsComponent physics = new PhysicsComponent();
+        physics.setBodyType(BodyType.DYNAMIC);
+        physics.setFixtureDef(new FixtureDef().friction(0f)); //Make the friction 0 to reduce the chances of some bugs and inconsistencies
+
+        return entityBuilder()
+                .type(EntityType.ENEMY)
+                .viewWithBBox(new Rectangle(10, 10, Color.GREEN))
+                .with(physics)
+                .with(new EnemyComponent(health, speed))
                 .collidable()
                 .build();
     }

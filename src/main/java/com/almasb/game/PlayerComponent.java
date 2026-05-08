@@ -9,10 +9,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public class PlayerComponent extends Component {
-
     private PhysicsComponent physics;
 
     private boolean jumping = false;
+
+    private double stunTimer = 0;
 
     // PlayerComponent.java mein
     private List<InventoryItem> inventory = new ArrayList<>(Collections.nCopies(Config.MAX_INVENTORY_SIZE, null));
@@ -138,6 +139,19 @@ public class PlayerComponent extends Component {
 
     @Override
     public void onUpdate(double tpf) {
+        //reduce the stuntimer
+        if (stunTimer > 0) {
+            stunTimer -= tpf;
+
+            //Artificial friction for the duration of stun
+            physics.setVelocityX(physics.getVelocityX() * 0.8);
+
+            //Hard stop after stun is over
+            if (stunTimer <= 0) {
+                physics.setVelocityX(0);
+            }
+        }
+
         if(isGrounded() && jumping)
         {
             physics.setVelocityX(0);
@@ -145,19 +159,35 @@ public class PlayerComponent extends Component {
         }
     }
 
+    public void knockback(double directionX) {
+        //Stun the player during knockback so cant cancel the knockback with movement keys
+        stunTimer = 0.3;
+        physics.setVelocityY(-80);
+        physics.setVelocityX(directionX);
+    }
+    public void knockback(double directionX, double directionY) {
+        stunTimer = 0.3;
+        physics.setVelocityY(directionY);
+        physics.setVelocityX(directionX);
+    }
+
     public void left() {
+        if (stunTimer > 0) return;
         physics.setVelocityX(-100);
     }
 
     public void right() {
+        if (stunTimer > 0) return;
         physics.setVelocityX(100);
     }
 
     public void stop() {
+        if (stunTimer > 0) return;
         physics.setVelocityX(0);
     }
 
     public void jump() {
+        if (stunTimer > 0) return;
 
         if (isGrounded()) {
             jumping = true;
