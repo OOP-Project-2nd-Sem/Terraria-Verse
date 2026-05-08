@@ -11,6 +11,9 @@ import java.util.Collections;
 public class PlayerComponent extends Component {
     private PhysicsComponent physics;
 
+    private int maxHealth = 100;
+    private double currentHealth = maxHealth;
+
     private boolean jumping = false;
 
     private double stunTimer = 0;
@@ -159,13 +162,24 @@ public class PlayerComponent extends Component {
         }
     }
 
-    public void knockback(double directionX) {
-        //Stun the player during knockback so cant cancel the knockback with movement keys
-        stunTimer = 0.3;
-        physics.setVelocityY(-80);
-        physics.setVelocityX(directionX);
+    public void takeDamage(double damage, double knockbackDirX) {takeDamage(damage, knockbackDirX, -80);}
+    public void takeDamage(double damage, double knockbackDirX, double knockbackDirY) {
+        // Prevent the player for taking damage every frame of the hit
+        if (stunTimer > 0) return;
+
+        currentHealth -= damage;
+        System.out.println("Player took " + damage + " damage! Health: " + currentHealth + "/" + maxHealth); //Temporarily print the damage and health on console
+
+        if (currentHealth <= 0) {
+            currentHealth = 0;
+            System.out.println("PLAYER DIED!"); // Temporarily print the died message on the console
+        } else {
+            knockback(knockbackDirX, knockbackDirY); // Only knockback if the player is aliive
+        }
     }
+
     public void knockback(double directionX, double directionY) {
+        //Stun the player during knockback so cant cancel the knockback with movement keys
         stunTimer = 0.3;
         physics.setVelocityY(directionY);
         physics.setVelocityX(directionX);
@@ -198,4 +212,7 @@ public class PlayerComponent extends Component {
     public boolean isGrounded() {
         return Math.abs(physics.getVelocityY()) < 0.1;
     }
+
+    public int getMaxHealth() {return maxHealth;}
+    public double getCurrentHealth() {return currentHealth;}
 }

@@ -43,17 +43,20 @@ public class GameFactory implements EntityFactory {
         //Default health and speed
         int health = 30;
         double speed = 40;
+        double damage = 15;
         // Texture texture =
 
         switch (type) {
             case SLIME:
                 health = 20;
                 speed = 40;
+                damage = 10;
                 //texture =
                 break;
             case ZOMBIE:
                 health = 50;
                 speed = 25;
+                damage = 20;
                 //texture =
                 break;
         }
@@ -61,6 +64,7 @@ public class GameFactory implements EntityFactory {
         //If a custom health and speed is passed through spawnData
         if (data.hasKey("health")) health = data.get("health");
         if (data.hasKey("speed")) speed = data.get("speed");
+        if(data.hasKey("damage")) damage = data.get("damage");
 
         PhysicsComponent physics = new PhysicsComponent();
         physics.setBodyType(BodyType.DYNAMIC);
@@ -70,7 +74,7 @@ public class GameFactory implements EntityFactory {
                 .type(EntityType.ENEMY)
                 .viewWithBBox(new Rectangle(10, 10, Color.GREEN))
                 .with(physics)
-                .with(new EnemyComponent(health, speed))
+                .with(new EnemyComponent(health, speed, damage))
                 .collidable()
                 .build();
     }

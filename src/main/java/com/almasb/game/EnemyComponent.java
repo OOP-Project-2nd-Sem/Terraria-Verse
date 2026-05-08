@@ -11,11 +11,13 @@ public class EnemyComponent extends Component {
     private int maxHealth;
     private double currentHealth;
     private double moveSpeed;
+    private double damage;
 
-    public EnemyComponent(int maxHealth, double moveSpeed) {
+    public EnemyComponent(int maxHealth, double moveSpeed, double damage) {
         this.maxHealth = maxHealth;
         this.currentHealth = maxHealth;
         this.moveSpeed = moveSpeed;
+        this.damage = damage;
     }
 
     public void takeDamage(double amount) {
@@ -42,4 +44,6 @@ public class EnemyComponent extends Component {
     public boolean isGrounded() {
         return Math.abs(physics.getVelocityY()) < 0.1;
     }
+
+    public double getDamage() {return damage;}
 }

@@ -278,8 +278,9 @@ public class GameApp extends GameApplication {
 
         FXGL.onCollisionBegin(EntityType.PLAYER, EntityType.ENEMY, (player, enemy) -> {
             double knowckbackDir = enemy.getX() > player.getX() ? -200: 200;
+            double damage = enemy.getComponent(EnemyComponent.class).getDamage();
 
-            player.getComponent(PlayerComponent.class).knockback(knowckbackDir);
+            player.getComponent(PlayerComponent.class).takeDamage(damage, knowckbackDir);
         });
     }
 
