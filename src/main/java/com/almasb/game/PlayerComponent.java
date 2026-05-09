@@ -1,7 +1,15 @@
 package com.almasb.game;
 
+import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.entity.component.Component;
 import com.almasb.fxgl.physics.PhysicsComponent;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.geometry.Pos;
+import javafx.scene.control.Button;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.control.Label;
 
 import java.awt.*;
 import java.util.List;
@@ -13,6 +21,7 @@ public class PlayerComponent extends Component {
 
     private int maxHealth = 100;
     private double currentHealth = maxHealth;
+    private DoubleProperty hpProperty = new SimpleDoubleProperty(maxHealth);
 
     private boolean jumping = false;
 
@@ -168,14 +177,20 @@ public class PlayerComponent extends Component {
         if (stunTimer > 0) return;
 
         currentHealth -= damage;
-        System.out.println("Player took " + damage + " damage! Health: " + currentHealth + "/" + maxHealth); //Temporarily print the damage and health on console
+        hpProperty.set(currentHealth);
 
         if (currentHealth <= 0) {
             currentHealth = 0;
-            System.out.println("PLAYER DIED!"); // Temporarily print the died message on the console
+            die();
         } else {
             knockback(knockbackDirX, knockbackDirY); // Only knockback if the player is aliive
         }
+    }
+
+    private void die() {
+        entity.removeFromWorld();
+
+        displayDeathScreen();
     }
 
     public void knockback(double directionX, double directionY) {
@@ -215,4 +230,37 @@ public class PlayerComponent extends Component {
 
     public int getMaxHealth() {return maxHealth;}
     public double getCurrentHealth() {return currentHealth;}
+    public DoubleProperty getHpProperty() {return hpProperty;}
+
+    private void displayDeathScreen() {
+        StackPane overlay = new StackPane();
+        overlay.setPrefSize(FXGL.getAppWidth(), FXGL.getAppHeight());
+        overlay.setStyle("-fx-background-color: rgba(100, 0, 0, 0.5);");
+
+        VBox deathMenu = new VBox(20);
+        deathMenu.setAlignment(Pos.CENTER);
+
+        Label deathText = new Label("YOU DIED");
+        deathText.setStyle(
+                "-fx-text-fill: #ff3333;" +
+                        "-fx-font-size: 80;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-effect: dropshadow(gaussian, black, 15, 0.6, 0, 0);"
+        );
+
+        Button menuBtn = new Button("Return to Main Manu");
+        String btnIdStyle = "-fx-font-size: 18; -fx-background-color: #222; -fx-text-fill: white; -fx-border-color: #ff3333; -fx-border-width: 2; -fx-padding: 10 20 10 20;";
+        String btnHoverStyle = "-fx-font-size: 18; -fx-background-color: #442222; -fx-text-fill: white; -fx-border-color: #ff3333; -fx-border-width: 2; -fx-padding: 10 20 10 20;";
+
+        menuBtn.setStyle(btnIdStyle);
+        menuBtn.setOnMouseEntered(e -> menuBtn.setStyle(btnHoverStyle));
+        menuBtn.setOnMouseExited(e -> menuBtn.setStyle(btnIdStyle));
+
+        menuBtn.setOnAction(e -> ((GameApp) FXGL.getApp()).resetToMainMenu());
+
+        deathMenu.getChildren().addAll(deathText, menuBtn);
+        overlay.getChildren().add(deathMenu);
+
+        FXGL.getGameScene().addUINode(overlay);
+    }
 }

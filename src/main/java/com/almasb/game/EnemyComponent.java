@@ -31,10 +31,13 @@ public class EnemyComponent extends Component {
 
     @Override
     public void onUpdate(double tpf) {
-        Entity player = FXGL.getGameWorld().getSingleton(EntityType.PLAYER);
+        // Check if there is a player in the world (used singletonOptional as safety in case player is dead)
+        var playerOptional = FXGL.getGameWorld().getSingletonOptional(EntityType.PLAYER);
 
         //Move towards the player
-        if (player != null) {
+        if (playerOptional.isPresent()) {
+            Entity player = playerOptional.get();
+
             boolean isGrounded = Math.abs(physics.getVelocityY()) < 0.1;
             boolean isStuck = Math.abs(physics.getVelocityX()) < 0.1;
 
@@ -49,6 +52,9 @@ public class EnemyComponent extends Component {
                 physics.setVelocityY(-170);
                 stuckTimer = 0;
             }
+        } else {
+            //Stop moving if there is no player
+            physics.setVelocityX(0);
         }
     }
 

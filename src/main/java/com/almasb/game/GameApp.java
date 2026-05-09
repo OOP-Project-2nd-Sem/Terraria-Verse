@@ -14,6 +14,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
@@ -40,6 +41,11 @@ public class GameApp extends GameApplication {
 
     // Current character
     private String currentCharacterName = "";
+
+    @Override
+    protected void initGame() {
+        FXGL.getGameWorld().addEntityFactory(new GameFactory());
+    }
 
     // ─── Settings ──────────────────────────────────────────────────────────────
 
@@ -430,7 +436,6 @@ public class GameApp extends GameApplication {
     // ─── Menu ──────────────────────────────────────────────────────────────────
 
     private void showMainMenu() {
-        FXGL.getGameWorld().addEntityFactory(new GameFactory());
         background = spawn("menu background");
 
         VBox menu = new VBox(10);
@@ -532,6 +537,17 @@ public class GameApp extends GameApplication {
         );
 
         initInventory();
+
+        displayHpBar();
+    }
+
+    public void resetToMainMenu() {
+        FXGL.getGameWorld().getEntitiesCopy().forEach(Entity::removeFromWorld);
+        FXGL.getGameScene().clearUINodes();
+
+        player = null;
+
+        showMainMenu();
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -546,6 +562,28 @@ public class GameApp extends GameApplication {
         int snappedX = (int) Math.floor(worldX / Config.TILE_SIZE) * Config.TILE_SIZE;
         int snappedY = (int) Math.floor(worldY / Config.TILE_SIZE) * Config.TILE_SIZE;
         return new Point2D(snappedX, snappedY);
+    }
+
+    private void displayHpBar() {
+        ProgressBar hpBar = new ProgressBar(1.0);
+
+        hpBar.setStyle("-fx-accent: red; -fx-control-inner-background: #333333;");
+        hpBar.setPrefWidth(200);
+        hpBar.setPrefHeight(20);
+
+        hpBar.setTranslateX(20);
+        hpBar.setTranslateY(20);
+
+        PlayerComponent pc = player.getComponent(PlayerComponent.class);
+        hpBar.progressProperty().bind(pc.getHpProperty().divide((double) pc.getMaxHealth()));
+
+        Label hpLabel = new Label("HP");
+        hpLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14;");
+        hpLabel.setTranslateX(25);
+        hpLabel.setTranslateY(20);
+
+        FXGL.getGameScene().addUINode(hpBar);
+        FXGL.getGameScene().addUINode(hpLabel);
     }
 
     // Convert BlockType to item name string for inventory
