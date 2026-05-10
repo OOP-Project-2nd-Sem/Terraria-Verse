@@ -70,10 +70,7 @@ public class PlayerComponent extends Component {
     public List<InventoryItem> getArmor() { return armor; }
     public int getSelectedHotbarSlot() { return selectedHotbarSlot; }
     public void setSelectedHotbarSlot(int slot) { selectedHotbarSlot = slot; }
-
-    public InventoryItem getSelectedItem() {
-        return hotbar.get(selectedHotbarSlot);
-    }
+    public InventoryItem getSelectedItem() { return hotbar.get(selectedHotbarSlot); }
 
     // ─── Add Item ──────────────────────────────────────────────────────────────
 
