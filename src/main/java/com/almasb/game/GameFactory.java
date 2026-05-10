@@ -29,9 +29,7 @@ public class GameFactory implements EntityFactory {
 
         return entityBuilder(data)
                 .type(EntityType.PLAYER)
-                .zIndex(10)
-                .view(new Rectangle(15, 19, Color.TRANSPARENT))
-                .bbox(new HitBox(BoundingShape.box(15, 19)))
+                .bbox(new HitBox(BoundingShape.box(12, 18)))
                 .with(physics)
                 .with(new PlayerComponent())
                 .collidable()
@@ -145,22 +143,42 @@ public class GameFactory implements EntityFactory {
      }
 
      private Texture getItemTexture(String itemType) {
-         String normalized = itemType == null ? "" : itemType.trim().toLowerCase();
+         // Return appropriate texture based on item type
+         if (itemType.equalsIgnoreCase("grass") || itemType.equalsIgnoreCase("Grass")) {
+             return Config.GRASS_TEX;
+         } else if (itemType.equalsIgnoreCase("stone") || itemType.equalsIgnoreCase("Stone")) {
+             return Config.STONE_TEX;
+         } else if (itemType.equalsIgnoreCase("dirt") || itemType.equalsIgnoreCase("Dirt")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.DIRT_BLOCK.col * 16, Config.BlockType.DIRT_BLOCK.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("coal") || itemType.equalsIgnoreCase("Coal")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.COAL_BLOCK_1.col * 16, Config.BlockType.COAL_BLOCK_1.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("iron") || itemType.equalsIgnoreCase("Iron")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.IRON_BLOCK_1.col * 16, Config.BlockType.IRON_BLOCK_1.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("diamond") || itemType.equalsIgnoreCase("Diamond")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.DIAMOND_BLOCK_1.col * 16, Config.BlockType.DIAMOND_BLOCK_1.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("gold") || itemType.equalsIgnoreCase("Gold")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.GOLD_BLOCK.col * 16, Config.BlockType.GOLD_BLOCK.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("emerald") || itemType.equalsIgnoreCase("Emerald")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.EMERALD_BLOCK.col * 16, Config.BlockType.EMERALD_BLOCK.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("lapis") || itemType.equalsIgnoreCase("Lapis")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.LAPIS_LAZULI_BLOCK.col * 16, Config.BlockType.LAPIS_LAZULI_BLOCK.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("wood") || itemType.equalsIgnoreCase("Wood")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.OAK_TREE_BOTTOM.col * 16, Config.BlockType.OAK_TREE_BOTTOM.row * 16, 16, 16));
+         } else if (itemType.equalsIgnoreCase("leaves") || itemType.equalsIgnoreCase("Leaves")) {
+             return texture("textures_02_08_25.png")
+                     .subTexture(new Rectangle2D(Config.BlockType.LEAF_VARIANT_1.col * 16, Config.BlockType.LEAF_VARIANT_1.row * 16, 16, 16));
+         }
 
-         return switch (normalized) {
-             case "grass" -> Config.getTexture(Config.SURFACE_GRASS_BLOCK);
-             case "dirt" -> Config.getTexture(Config.DEFAULT_DIRT_BLOCK);
-             case "stone" -> Config.getTexture(Config.DEFAULT_STONE_BLOCK);
-             case "coal" -> Config.getTexture(Config.BlockType.COAL_BLOCK_1);
-             case "iron" -> Config.getTexture(Config.BlockType.IRON_BLOCK_1);
-             case "diamond" -> Config.getTexture(Config.BlockType.DIAMOND_BLOCK_1);
-             case "gold" -> Config.getTexture(Config.BlockType.GOLD_BLOCK);
-             case "emerald" -> Config.getTexture(Config.BlockType.EMERALD_BLOCK);
-             case "lapis" -> Config.getTexture(Config.BlockType.LAPIS_LAZULI_BLOCK);
-             case "wood" -> Config.getTexture(Config.DEFAULT_TREE_TRUNK_BLOCK);
-             case "leaves" -> Config.getTexture(Config.DEFAULT_LEAVES_BLOCK);
-             default -> Config.getTexture(Config.SURFACE_GRASS_BLOCK);
-         };
+         // Default to grass texture
+         return Config.GRASS_TEX;
      }
      @Spawns("block")
      public Entity newBlock(SpawnData data) {
