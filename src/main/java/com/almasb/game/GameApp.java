@@ -542,6 +542,7 @@ public class GameApp extends GameApplication {
     }
 
     public void resetToMainMenu() {
+        FXGL.getGameScene().getViewport().unbind();
         FXGL.getGameWorld().getEntitiesCopy().forEach(Entity::removeFromWorld);
         FXGL.getGameScene().clearUINodes();
 

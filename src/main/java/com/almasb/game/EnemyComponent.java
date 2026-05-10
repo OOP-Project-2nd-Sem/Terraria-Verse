@@ -38,6 +38,13 @@ public class EnemyComponent extends Component {
         if (playerOptional.isPresent()) {
             Entity player = playerOptional.get();
 
+            //Stop movement if the player is dead
+            if (player.getComponent(PlayerComponent.class).isDead()) {
+                physics.setVelocityX(0);
+                physics.setVelocityY(0);
+                return;
+            }
+
             boolean isGrounded = Math.abs(physics.getVelocityY()) < 0.1;
             boolean isStuck = Math.abs(physics.getVelocityX()) < 0.1;
 

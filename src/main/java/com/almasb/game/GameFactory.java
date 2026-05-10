@@ -29,7 +29,7 @@ public class GameFactory implements EntityFactory {
 
         return entityBuilder(data)
                 .type(EntityType.PLAYER)
-                .viewWithBBox(new Rectangle(10, 10, Color.RED))
+                .bbox(new HitBox(BoundingShape.box(15, 19)))
                 .with(physics)
                 .with(new PlayerComponent())
                 .collidable()

@@ -3,6 +3,8 @@ package com.almasb.game;
 import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.entity.component.Component;
 import com.almasb.fxgl.physics.PhysicsComponent;
+import com.almasb.fxgl.texture.AnimatedTexture;
+import com.almasb.fxgl.texture.AnimationChannel;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Pos;
@@ -10,8 +12,7 @@ import javafx.scene.control.Button;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.control.Label;
-
-import java.awt.*;
+import javafx.util.Duration;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -19,13 +20,38 @@ import java.util.Collections;
 public class PlayerComponent extends Component {
     private PhysicsComponent physics;
 
+    private AnimatedTexture texture;
+    private AnimationChannel animIdle, animWalk, animHurt, animDeath;
+
     private int maxHealth = 100;
     private double currentHealth = maxHealth;
     private DoubleProperty hpProperty = new SimpleDoubleProperty(maxHealth);
 
-    private boolean jumping = false;
+    private boolean jumping = false, isDead = false;
 
     private double stunTimer = 0;
+
+    public PlayerComponent() {
+        animIdle = new AnimationChannel(FXGL.image("Soldier-Idle.png"), 6, 90/6, 19, Duration.seconds(0.6), 0, 5);
+        animWalk = new AnimationChannel(FXGL.image("Soldier-Walk.png"), 8, 120/8, 18, Duration.seconds(0.8), 0, 7);
+        animHurt = new AnimationChannel(FXGL.image("Soldier-Hurt.png"), 4, 64/4, 18, Duration.seconds(0.4), 0, 3);
+        animDeath = new AnimationChannel(FXGL.image("Soldier-Death.png"), 4, 65/4, 18, Duration.seconds(0.4), 0, 3);
+
+        texture  = new AnimatedTexture(animIdle);
+        texture.loop();
+
+        // Start the idle animation once the hurt animation finishes
+        texture.setOnCycleFinished(() -> {
+            if(texture.getAnimationChannel() == animHurt) {
+                if (!isDead) { texture.loopAnimationChannel(animIdle); }
+            }
+        });
+    }
+
+    @Override
+    public void onAdded() {
+        entity.getViewComponent().addChild(texture);
+    }
 
     // PlayerComponent.java mein
     private List<InventoryItem> inventory = new ArrayList<>(Collections.nCopies(Config.MAX_INVENTORY_SIZE, null));
@@ -179,6 +205,8 @@ public class PlayerComponent extends Component {
         currentHealth -= damage;
         hpProperty.set(currentHealth);
 
+        if (texture.getAnimationChannel() != animHurt) { texture.playAnimationChannel(animHurt); }
+
         if (currentHealth <= 0) {
             currentHealth = 0;
             die();
@@ -188,35 +216,53 @@ public class PlayerComponent extends Component {
     }
 
     private void die() {
-        entity.removeFromWorld();
+        isDead = true;
+        if (texture.getAnimationChannel() != animDeath) { texture.playAnimationChannel(animDeath); }
 
-        displayDeathScreen();
+        // Display the death screen after a delay so the death animation is visible
+        FXGL.getGameTimer().runOnceAfter(() -> {
+            entity.removeFromWorld();
+            displayDeathScreen();
+        }, Duration.seconds(0.8));
     }
 
     public void knockback(double directionX, double directionY) {
         //Stun the player during knockback so cant cancel the knockback with movement keys
         stunTimer = 0.3;
+
+        if (isDead) return;
+
         physics.setVelocityY(directionY);
         physics.setVelocityX(directionX);
     }
 
     public void left() {
-        if (stunTimer > 0) return;
+        if (isDead || stunTimer > 0) return;
         physics.setVelocityX(-100);
+
+        //Turn the sprite in the direction of the movement
+        entity.getViewComponent().getParent().setScaleX(-1);
+        if (texture.getAnimationChannel() != animWalk) { texture.loopAnimationChannel(animWalk); }
     }
 
     public void right() {
-        if (stunTimer > 0) return;
+        if (isDead || stunTimer > 0) return;
         physics.setVelocityX(100);
+
+        //Turn the sprite in the direction of the movement
+        entity.getViewComponent().getParent().setScaleX(1);
+        if (texture.getAnimationChannel() != animWalk) { texture.loopAnimationChannel(animWalk); }
     }
 
     public void stop() {
         if (stunTimer > 0) return;
         physics.setVelocityX(0);
+
+        if (texture.getAnimationChannel() != animIdle) { texture.loopAnimationChannel(animIdle); }
     }
 
     public void jump() {
-        if (stunTimer > 0) return;
+        if (isDead || stunTimer > 0) return;
 
         if (isGrounded()) {
             jumping = true;
@@ -231,6 +277,7 @@ public class PlayerComponent extends Component {
     public int getMaxHealth() {return maxHealth;}
     public double getCurrentHealth() {return currentHealth;}
     public DoubleProperty getHpProperty() {return hpProperty;}
+    public boolean isDead() {return isDead;}
 
     private void displayDeathScreen() {
         StackPane overlay = new StackPane();
