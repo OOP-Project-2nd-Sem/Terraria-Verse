@@ -62,6 +62,7 @@ public class GameApp extends GameApplication {
     private GridPane inventoryRoot;
     private GridPane hotbarRoot;
     private GridPane armorRoot;
+    private CraftingMenu craftingMenu;
 
     // Selection state
     private int selectedSlotIndex = -1;
@@ -261,6 +262,12 @@ public class GameApp extends GameApplication {
                 }
             }
         }, KeyCode.E);
+        input.addAction(new UserAction("Toggle Crafting Menu") {
+            @Override
+            protected void onActionBegin() {
+                craftingMenu.toggle();
+            }
+        }, KeyCode.C);
 
         // Save — F5
         input.addAction(new UserAction("Save Game") {
@@ -465,6 +472,7 @@ public class GameApp extends GameApplication {
         refreshInventory();
         refreshHotbar();
         refreshArmor();
+        if (craftingMenu != null) craftingMenu.refresh();
     }
 
     // ─── Save Notification ─────────────────────────────────────────────────────
@@ -576,9 +584,11 @@ public class GameApp extends GameApplication {
         double spawnWorldX = spawnTileX * Config.TILE_SIZE;
         double spawnWorldY = spawnSurfaceY * Config.TILE_SIZE - PLAYER_BBOX_HEIGHT - 1;
         player = spawn("player", new SpawnData(spawnWorldX, spawnWorldY));
+        craftingMenu = new CraftingMenu(player);
+        craftingMenu.init();
 
         //Test enemy
-        spawn("enemy", new SpawnData(player.getX() + 300, player.getY() - 100).put("type", EnemyType.SLIME));
+        spawn("enemy", new SpawnData(player.getX() + 100, player.getY() - 50).put("type", EnemyType.SLIME));
 
         background.removeFromWorld();
         spawn("background");
