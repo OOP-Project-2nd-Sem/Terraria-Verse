@@ -10,19 +10,21 @@ import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.texture.Texture;
 import com.almasb.fxgl.time.TimerAction;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.util.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -375,17 +377,88 @@ protected void initUI() {
     }
 
     private VBox baseMenu() {
-        VBox menu = new VBox(10);
-        menu.setTranslateX(500);
-        menu.setTranslateY(300);
+        VBox menu = new VBox(16);
+        menu.setAlignment(Pos.CENTER);
+        menu.setTranslateX(getAppWidth()-1350/2.0);
+        menu.setTranslateY(getAppHeight()*0.5);
         return menu;
     }
 
+    private Button menuButton(String text) {
+        Button btn = new Button(text);
+        btn.setPrefWidth(340);
+        btn.setPrefHeight(54);
+        btn.setStyle(
+                "-fx-background-color: #f0e070;" +
+                        "-fx-border-color: #2a5a2a;" +
+                        "-fx-border-width: 3;" +
+                        "-fx-border-radius: 4;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-font-family: 'Arial Black';" +
+                        "-fx-font-size: 20;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #1a1a1a;" +
+                        "-fx-cursor: hand;"
+        );
+        btn.setOnMouseEntered(e -> btn.setStyle(
+                "-fx-background-color: #ffffa0;" +
+                        "-fx-border-color: #2a5a2a;" +
+                        "-fx-border-width: 3;" +
+                        "-fx-border-radius: 4;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-font-family: 'Arial Black';" +
+                        "-fx-font-size: 20;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #1a1a1a;" +
+                        "-fx-cursor: hand;"
+        ));
+        btn.setOnMouseExited(e -> btn.setStyle(
+                "-fx-background-color: #f0e070;" +
+                        "-fx-border-color: #2a5a2a;" +
+                        "-fx-border-width: 3;" +
+                        "-fx-border-radius: 4;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-font-family: 'Arial Black';" +
+                        "-fx-font-size: 20;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #1a1a1a;" +
+                        "-fx-cursor: hand;"
+        ));
+        return btn;
+    }
+    private HBox spacedText(String word, Font font, Color fill, double spacing) {
+        HBox box = new HBox(spacing);
+        box.setAlignment(Pos.CENTER);
+        for (char c : word.toCharArray()) {
+            Text t = new Text(String.valueOf(c));
+            t.setFont(font);
+            t.setFill(fill);
+            t.setStyle("-fx-effect: dropshadow(gaussian, #00008b, 8, 1.0, 4, 4);");
+            box.getChildren().add(t);
+        }
+        return box;
+    }
+
     private void showMainMenu() {
+        Font minecrafterFont = Font.loadFont(
+                getClass().getResourceAsStream("/assets/fonts/Minecrafter.Reg.ttf"), 72
+        );
+
+        HBox title    = spacedText("TERRARIA", minecrafterFont, Color.web("#f0e070"), 6);
+        title.setStyle("-fx-effect: dropshadow(gaussian, #00008b, 8, 1.0, 4, 4);");
+
+        HBox subtitle = spacedText("VERSE",    minecrafterFont, Color.web("#f0e070"), 6);
+        subtitle.setStyle("-fx-effect: dropshadow(gaussian, #00008b, 8, 1.0, 4, 4);");
         background = spawn("menu background");
 
         VBox menu = baseMenu();
-        Button selectChar  = new Button("Select Character");
+
+        VBox titleBox = new VBox(10, title, subtitle);
+        titleBox.setAlignment(Pos.CENTER);
+        titleBox.setTranslateX((getAppWidth() - 400) / 2.0);
+        titleBox.setTranslateY(getAppHeight() * 0.1);
+        FXGL.getGameScene().addUINode(titleBox);
+        Button selectChar  = menuButton("Select Character");
 
         selectChar.setOnAction(e  -> showCharacterSelection());
 
@@ -396,32 +469,101 @@ protected void initUI() {
     // ── Stage 2a: Character Selection ────────────────────────────────────────────
 
     private void showCharacterSelection() {
-
+        FXGL.getGameScene().clearUINodes();
         VBox menu = baseMenu();
 
-        // Load existing characters and show each as a button
+        // ── Character buttons in a scrollable panel ───────────────────────────
+        VBox characterList = new VBox(8);
+        characterList.setAlignment(Pos.CENTER);
+        characterList.setPadding(new Insets(8));
+
         List<String> characters = SaveManager.getAllCharacters();
 
         if (characters.isEmpty()) {
             Label noChars = new Label("No characters found!");
-            noChars.setStyle("-fx-text-fill: white;");
-            menu.getChildren().add(noChars);
+            noChars.setStyle(
+                    "-fx-text-fill: #f0e070;" +
+                            "-fx-font-family: 'Arial Black';" +
+                            "-fx-font-size: 14;"
+            );
+            characterList.getChildren().add(noChars);
         }
 
         for (String name : characters) {
-            Button btn = new Button(name);
+            Button btn = characterButton(name);
             btn.setOnAction(e -> showWorldSelection(name));
-            menu.getChildren().add(btn);
+            characterList.getChildren().add(btn);
         }
 
-        Button newChar = new Button("+ New Character");
+        ScrollPane scroll = new ScrollPane(characterList);
+        scroll.setFitToWidth(true);
+        scroll.setPrefWidth(340);
+        scroll.setMaxHeight(250);
+        scroll.setTranslateY(-100);
+        scroll.setStyle(
+                "-fx-background: transparent;" +
+                        "-fx-background-color: rgba(0,0,0,0.45);" +
+                        "-fx-border-color: #2a5a2a;" +
+                        "-fx-border-width: 3;" +
+                        "-fx-border-radius: 4;" +
+                        "-fx-background-radius: 4;"
+        );
+
+        // ── Action buttons below the panel ────────────────────────────────────
+        Button newChar = menuButton("+ New Character");
+        newChar.setTranslateY(-100);
         newChar.setOnAction(e -> showCharacterCreation());
 
-        Button back = new Button("Back");
+        Button back = menuButton("Back");
+        back.setTranslateY(-100);
         back.setOnAction(e -> showMainMenu());
 
-        menu.getChildren().addAll(newChar, back);
+        menu.getChildren().addAll(scroll, newChar, back);
         showMenu(menu);
+    }
+
+    // Slightly different style for character slots — more subdued than action buttons
+    private Button characterButton(String text) {
+        Button btn = new Button(text);
+        btn.setPrefWidth(320);
+        btn.setPrefHeight(46);
+        btn.setStyle(
+                "-fx-background-color: #c8d878;" +
+                        "-fx-border-color: #3a7a3a;" +
+                        "-fx-border-width: 2;" +
+                        "-fx-border-radius: 4;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-font-family: 'Arial Black';" +
+                        "-fx-font-size: 16;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #1a1a1a;" +
+                        "-fx-cursor: hand;"
+        );
+        btn.setOnMouseEntered(e -> btn.setStyle(
+                "-fx-background-color: #e8f898;" +
+                        "-fx-border-color: #3a7a3a;" +
+                        "-fx-border-width: 2;" +
+                        "-fx-border-radius: 4;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-font-family: 'Arial Black';" +
+                        "-fx-font-size: 16;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #1a1a1a;" +
+                        "-fx-cursor: hand;"
+        ));
+        btn.setOnMouseExited(e -> btn.setStyle(
+                "-fx-background-color: #c8d878;" +
+                        "-fx-border-color: #3a7a3a;" +
+                        "-fx-border-width: 2;" +
+                        "-fx-border-radius: 4;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-font-family: 'Arial Black';" +
+                        "-fx-font-size: 16;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #1a1a1a;" +
+                        "-fx-cursor: hand;"
+        ));
+        return btn;
     }
     private void showCharacterCreation() {
         FXGL.getGameScene().clearUINodes();
@@ -432,7 +574,7 @@ protected void initUI() {
         TextField nameField = new TextField();
         nameField.setPromptText("Enter Name");
 
-        Button create = new Button("Create");
+        Button create = menuButton("Create");
         create.setOnAction(e -> {
             String name = nameField.getText().trim();
             if (name.isEmpty()) return;
@@ -441,7 +583,7 @@ protected void initUI() {
             SaveManager.saveCharacter(newChar);
             showWorldSelection(name);
         });
-        Button back = new Button("Back");
+        Button back = menuButton("Back");
         back.setOnAction(e -> showCharacterSelection());
 
         menu.getChildren().addAll(nameField, create, back);
@@ -451,16 +593,35 @@ protected void initUI() {
 // ── Stage 2b: World Selection ─────────────────────────────────────────────────
 
     private void showWorldSelection(String characterName) {
+        FXGL.getGameScene().clearUINodes();
 
         VBox menu = baseMenu();
 
         Label seedLabel = new Label("Enter Seed:");
-        seedLabel.setStyle("-fx-text-fill: white;");
+        seedLabel.setStyle(
+                "-fx-text-fill: #f0e070;" +
+                        "-fx-font-family: 'Arial Black';" +
+                        "-fx-font-size: 16;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-effect: dropshadow(gaussian, #00008b, 4, 0.8, 2, 2);"
+        );
+
 
         TextField seedField = new TextField();
         seedField.setMaxWidth(200);
 
-        Button generate = new Button("Generate World");
+        seedField.setStyle(
+                "-fx-background-color: #f0e070;" +
+                        "-fx-border-color: #2a5a2a;" +
+                        "-fx-border-width: 3;" +
+                        "-fx-border-radius: 4;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-font-size: 14;" +
+                        "-fx-pref-width: 340;" +
+                        "-fx-pref-height: 40;"
+        );
+
+        Button generate = menuButton("Generate World");
         generate.setOnAction(e -> {
             String seed = seedField.getText().trim();
             if (seed.isEmpty()) {
@@ -478,7 +639,7 @@ protected void initUI() {
             seedField.setPromptText("Enter a seed");
         });
 
-        Button back = new Button("Back");
+        Button back = menuButton("Back");
         back.setOnAction(e -> showCharacterSelection());
 
         menu.getChildren().addAll(seedLabel, seedField, generate, back);

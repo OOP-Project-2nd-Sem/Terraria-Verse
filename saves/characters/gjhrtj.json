@@ -1,5 +1,5 @@
 {
-  "name": "Jawad",
+  "name": "gjhrtj",
   "skinColor": "#FFD700",
   "hairColor": "#8B4513",
   "shirtColor": "#4169E1",
@@ -20,11 +20,6 @@
     null,
     null,
     null,
-    {
-      "name": "crafting_table",
-      "count": 1,
-      "category": "BLOCK"
-    },
     null,
     null,
     null,
@@ -34,16 +29,9 @@
     null,
     null,
     null,
-    {
-      "name": "wooden_pickaxe",
-      "count": 2,
-      "category": "ITEM"
-    },
-    {
-      "name": "stick",
-      "count": 4,
-      "category": "ITEM"
-    },
+    null,
+    null,
+    null,
     null,
     null,
     null,
@@ -63,26 +51,10 @@
     null
   ],
   "hotbar": [
-    {
-      "name": "grass",
-      "count": 70,
-      "category": "BLOCK"
-    },
-    {
-      "name": "stone",
-      "count": 5,
-      "category": "BLOCK"
-    },
-    {
-      "name": "Wood",
-      "count": 8,
-      "category": "BLOCK"
-    },
-    {
-      "name": "Leaves",
-      "count": 1,
-      "category": "BLOCK"
-    },
+    null,
+    null,
+    null,
+    null,
     null,
     null,
     null,
