@@ -53,27 +53,33 @@
   "hotbar": [
     {
       "name": "Grass",
-      "count": 1
+      "count": 2,
+      "category": "BLOCK"
     },
     {
       "name": "Dirt",
-      "count": 2
+      "count": 2,
+      "category": "BLOCK"
     },
     {
       "name": "Stone",
-      "count": 4
+      "count": 4,
+      "category": "BLOCK"
     },
     {
       "name": "Iron",
-      "count": 1
+      "count": 1,
+      "category": "BLOCK"
     },
     {
       "name": "Wood",
-      "count": 1
+      "count": 1,
+      "category": "BLOCK"
     },
     {
       "name": "Leaves",
-      "count": 1
+      "count": 1,
+      "category": "BLOCK"
     },
     null,
     null,
