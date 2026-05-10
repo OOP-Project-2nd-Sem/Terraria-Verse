@@ -91,7 +91,7 @@ public class GameFactory implements EntityFactory {
     @Spawns("menu background")
     public Entity newMenuBackground(SpawnData data) {
         return entityBuilder()
-                .view(new ScrollingBackgroundView(texture("backgrounds/eiffeltower.png").getImage(), getAppWidth(), getAppHeight()))
+                .view(texture("backgrounds/MainMenu_Forest.png", getAppWidth(), getAppHeight()))
                 .zIndex(-1)
                 .build();
     }

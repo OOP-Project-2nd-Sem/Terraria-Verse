@@ -9,6 +9,7 @@ import com.almasb.fxgl.input.Input;
 import com.almasb.fxgl.input.UserAction;
 import com.almasb.fxgl.texture.Texture;
 import com.almasb.fxgl.time.TimerAction;
+import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
@@ -16,6 +17,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
@@ -33,6 +35,7 @@ import static com.almasb.fxgl.dsl.FXGL.*;
 public class GameApp extends GameApplication {
 
     private Entity player, background;
+    private VBox currentMenu;
     private final Map<Long, Entity> activeTerrainBlocks = new HashMap<>();
     private final Map<Integer, Config.BlockType[]> terrainColumns = new HashMap<>();
     private final Map<Integer, Integer> surfaceHeights = new HashMap<>();
@@ -55,7 +58,7 @@ public class GameApp extends GameApplication {
     private int loadedMinTileY = Integer.MAX_VALUE;
     private int loadedMaxTileY = Integer.MIN_VALUE;
 
-    private long worldSeed = 1337L;
+    private long worldSeed;
     private TerrainNoiseGenerator terrainNoise;
 
     // UI roots
@@ -363,22 +366,63 @@ protected void initUI() {
 
     // ─── Menu ──────────────────────────────────────────────────────────────────
 
-    private void showMainMenu() {
-        background = spawn("menu background");
+    // ── Helper to swap menus cleanly ─────────────────────────────────────────────
 
+    private void showMenu(VBox newMenu) {
+        if (currentMenu != null) FXGL.getGameScene().removeUINode(currentMenu);
+        currentMenu = newMenu;
+        FXGL.getGameScene().addUINode(currentMenu);
+    }
+
+    private VBox baseMenu() {
         VBox menu = new VBox(10);
         menu.setTranslateX(500);
         menu.setTranslateY(300);
-        Button newGame = new Button("New Character");
-        Button loadGame = new Button("Load Character");
-
-        newGame.setOnAction(e -> showCharacterCreation());
-        loadGame.setOnAction(e -> showCharacterSelection());
-
-        menu.getChildren().addAll(newGame, loadGame);
-        FXGL.getGameScene().addUINode(menu);
+        return menu;
     }
 
+    private void showMainMenu() {
+        background = spawn("menu background");
+
+        VBox menu = baseMenu();
+        Button selectChar  = new Button("Select Character");
+
+        selectChar.setOnAction(e  -> showCharacterSelection());
+
+        menu.getChildren().addAll(selectChar);
+        showMenu(menu);
+    }
+
+    // ── Stage 2a: Character Selection ────────────────────────────────────────────
+
+    private void showCharacterSelection() {
+
+        VBox menu = baseMenu();
+
+        // Load existing characters and show each as a button
+        List<String> characters = SaveManager.getAllCharacters();
+
+        if (characters.isEmpty()) {
+            Label noChars = new Label("No characters found!");
+            noChars.setStyle("-fx-text-fill: white;");
+            menu.getChildren().add(noChars);
+        }
+
+        for (String name : characters) {
+            Button btn = new Button(name);
+            btn.setOnAction(e -> showWorldSelection(name));
+            menu.getChildren().add(btn);
+        }
+
+        Button newChar = new Button("+ New Character");
+        newChar.setOnAction(e -> showCharacterCreation());
+
+        Button back = new Button("Back");
+        back.setOnAction(e -> showMainMenu());
+
+        menu.getChildren().addAll(newChar, back);
+        showMenu(menu);
+    }
     private void showCharacterCreation() {
         FXGL.getGameScene().clearUINodes();
 
@@ -397,53 +441,71 @@ protected void initUI() {
             SaveManager.saveCharacter(newChar);
             showWorldSelection(name);
         });
+        Button back = new Button("Back");
+        back.setOnAction(e -> showCharacterSelection());
 
-        menu.getChildren().addAll(nameField, create);
+        menu.getChildren().addAll(nameField, create, back);
         FXGL.getGameScene().addUINode(menu);
     }
 
-    private void showCharacterSelection() {
-        FXGL.getGameScene().clearUINodes();
-
-        VBox menu = new VBox(10);
-        menu.setTranslateX(500);
-        menu.setTranslateY(300);
-
-        List<String> characters = SaveManager.getAllCharacters();
-
-        if (characters.isEmpty()) {
-            Label noChars = new Label("No characters found!");
-            noChars.setStyle("-fx-text-fill: white;");
-            menu.getChildren().add(noChars);
-        }
-
-        for (String name : characters) {
-            Button btn = new Button(name);
-            btn.setOnAction(e -> showWorldSelection(name));
-            menu.getChildren().add(btn);
-        }
-
-        FXGL.getGameScene().addUINode(menu);
-    }
+// ── Stage 2b: World Selection ─────────────────────────────────────────────────
 
     private void showWorldSelection(String characterName) {
-        FXGL.getGameScene().clearUINodes();
 
-        VBox menu = new VBox(10);
-        menu.setTranslateX(500);
-        menu.setTranslateY(300);
-        Button world1 = new Button("World 1");
-        world1.setOnAction(e -> startGame(characterName, "world1"));
-        menu.getChildren().add(world1);
-        FXGL.getGameScene().addUINode(menu);
+        VBox menu = baseMenu();
+
+        Label seedLabel = new Label("Enter Seed:");
+        seedLabel.setStyle("-fx-text-fill: white;");
+
+        TextField seedField = new TextField();
+        seedField.setMaxWidth(200);
+
+        Button generate = new Button("Generate World");
+        generate.setOnAction(e -> {
+            String seed = seedField.getText().trim();
+            if (seed.isEmpty()) {
+                seedField.setPromptText("Seed cannot be empty!");
+                seedField.setStyle("-fx-border-color: red;");
+                return;
+            }
+            long worldSeed = seed.hashCode();
+            showLoadingThenStart(characterName);
+        });
+
+        seedField.setOnKeyTyped(e -> {
+            // Clear error state as soon as user starts typing
+            seedField.setStyle("");
+            seedField.setPromptText("Enter a seed");
+        });
+
+        Button back = new Button("Back");
+        back.setOnAction(e -> showCharacterSelection());
+
+        menu.getChildren().addAll(seedLabel, seedField, generate, back);
+        showMenu(menu);
     }
 
-    private void startGame(String characterName, String world) {
+    private void showLoadingThenStart(String characterName) {
+        if (currentMenu != null) FXGL.getGameScene().removeUINode(currentMenu);
+
+        ImageView loadingScreen = new ImageView(FXGL.image("backgrounds/Credits.png"));
+        loadingScreen.setFitWidth(getAppWidth());
+        loadingScreen.setFitHeight(getAppHeight());
+        FXGL.getGameScene().addUINode(loadingScreen);
+
+        FXGL.runOnce(() -> {
+            FXGL.getGameScene().removeUINode(loadingScreen);
+            startGame(characterName);
+        }, Duration.seconds(3));
+    }
+
+
+    private void startGame(String characterName) {
         currentCharacterName = characterName;
         terrainNoise = new TerrainNoiseGenerator(worldSeed);
-        FXGL.getGameScene().clearUINodes();
         activeTerrainBlocks.clear();
         resetLoadedTerrainWindow();
+        FXGL.getGameScene().clearUINodes();
         FXGL.getGameScene().getViewport().setBounds(-1_000_000, 0, 1_000_000, MAP_HEIGHT_TILES * Config.TILE_SIZE);
         // load world + player
         generateMap();
