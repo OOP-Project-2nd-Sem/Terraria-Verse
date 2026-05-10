@@ -24,6 +24,7 @@ public final class Config {
     public static final BlockType DEFAULT_STONE_BLOCK = BlockType.GENERIC_STONE_1;
     public static final BlockType DEFAULT_TREE_TRUNK_BLOCK = BlockType.OAK_TREE_BOTTOM;
     public static final BlockType DEFAULT_LEAVES_BLOCK = BlockType.LEAF_VARIANT_1;
+    public static final BlockType DEFAULT_PLANK_BLOCK = BlockType.HOUSE_WOOD_12;
 
 
     public enum BlockType {

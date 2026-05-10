@@ -9,7 +9,10 @@
   "mana": 20,
   "maxMana": 20,
   "inventory": [
-    null,
+    {
+      "name": "plank",
+      "count": 4
+    },
     null,
     null,
     null,
@@ -59,7 +62,10 @@
       "name": "stone",
       "count": 5
     },
-    null,
+    {
+      "name": "Wood",
+      "count": 1
+    },
     null,
     null,
     null,

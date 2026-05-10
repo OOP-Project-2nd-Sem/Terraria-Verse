@@ -34,6 +34,7 @@ public class InventoryItem {
             case "emerald" -> Config.BlockType.EMERALD_BLOCK;
             case "lapis"   -> Config.BlockType.LAPIS_LAZULI_BLOCK;
             case "wood"    -> Config.DEFAULT_TREE_TRUNK_BLOCK;
+            case "plank"   -> Config.DEFAULT_PLANK_BLOCK;
             case "leaves"  -> Config.DEFAULT_LEAVES_BLOCK;
             default        -> Config.SURFACE_GRASS_BLOCK;
         };

@@ -59,14 +59,13 @@ public class GameApp extends GameApplication {
     private TerrainNoiseGenerator terrainNoise;
 
     // UI roots
-    private GridPane inventoryRoot;
-    private GridPane hotbarRoot;
-    private GridPane armorRoot;
+    // ADD:
+    Runnable refreshAll = this::refreshAll;
+    private final SlotSelectionState selectionState = new SlotSelectionState();
+    private final InventoryUI inventoryUI = new InventoryUI(selectionState, refreshAll);
+    private final HotbarUI    hotbarUI    = new HotbarUI(selectionState, refreshAll);
+    private final ArmorUI     armorUI     = new ArmorUI(selectionState, refreshAll);
     private CraftingMenu craftingMenu;
-
-    // Selection state
-    private int selectedSlotIndex = -1;
-    private String selectedSlotType = "";
 
     // Current character
     private String currentCharacterName = "";
@@ -195,7 +194,7 @@ public class GameApp extends GameApplication {
             @Override
             protected void onActionBegin() {
                 if (player == null) return;
-                if (selectedSlotIndex == -1) return;
+                if (selectionState.isEmpty()) return;          // ← changed
 
                 double worldX = input.getMouseXWorld();
                 double worldY = input.getMouseYWorld();
@@ -212,17 +211,20 @@ public class GameApp extends GameApplication {
                 Rectangle2D playerBounds = new Rectangle2D(player.getX(), player.getY(), player.getWidth(), player.getHeight());
                 if (targetCell.intersects(playerBounds)) return;
 
-                // Hotbar se place karo (selected slot hotbar mein hai)
                 PlayerComponent pc = player.getComponent(PlayerComponent.class);
-                List<InventoryItem> sourceList = getSlotList(pc, selectedSlotType);
-                InventoryItem itemToPlace = sourceList.get(selectedSlotIndex);
+
+                // ↓ changed: read from selectionState instead of selectedSlotIndex/Type
+                List<InventoryItem> sourceList = switch (selectionState.getSlotType()) {
+                    case "hotbar" -> pc.getHotbar();
+                    case "armor"  -> pc.getArmor();
+                    default       -> pc.getInventory();
+                };
+                InventoryItem itemToPlace = sourceList.get(selectionState.getIndex());
 
                 if (itemToPlace == null) return;
 
                 Config.BlockType placedType = resolveBlockTypeForItemName(itemToPlace.getName());
-                if (placedType == null) {
-                    return;
-                }
+                if (placedType == null) return;
 
                 int tileX = worldToTile(snapped.getX());
                 int tileY = worldToTile(snapped.getY());
@@ -237,27 +239,37 @@ public class GameApp extends GameApplication {
 
                 itemToPlace.setCount(itemToPlace.getCount() - 1);
                 if (itemToPlace.getCount() <= 0) {
-                    sourceList.set(selectedSlotIndex, null);
-                    selectedSlotIndex = -1;
-                    selectedSlotType = "";
+                    sourceList.set(selectionState.getIndex(), null);
+                    selectionState.clear();                    // ← changed
                 }
 
                 refreshAll();
             }
         }, MouseButton.SECONDARY);
 
+
+
+        for (int i = 0; i < 10; i++) {
+            final int slot = i;
+            KeyCode key = KeyCode.getKeyCode(String.valueOf(i == 9 ? 0 : i + 1));
+            input.addAction(new UserAction("Hotbar " + slot) {
+                @Override
+                protected void onActionBegin() {
+                    if (player == null) return;
+                    player.getComponent(PlayerComponent.class).setSelectedHotbarSlot(slot);
+                    if (hotbarUI != null) hotbarUI.refresh();  // ← changed
+                }
+            }, key);
+        }
+
         // Toggle Inventory + Armor — E
         input.addAction(new UserAction("Toggle Inventory") {
             @Override
             protected void onActionBegin() {
-                if (inventoryRoot == null) return;
-                boolean visible = !inventoryRoot.isVisible();
-                inventoryRoot.setVisible(visible);
-                armorRoot.setVisible(visible);
-
+                boolean visible = inventoryUI.toggle();
+                armorUI.setVisible(visible);
                 if (!visible) {
-                    selectedSlotIndex = -1;
-                    selectedSlotType = "";
+                    selectionState.clear();
                     refreshAll();
                 }
             }
@@ -280,28 +292,15 @@ public class GameApp extends GameApplication {
                 }
             }
         }, KeyCode.F5);
-
-        // Hotbar keys 1-9, 0
-        for (int i = 0; i < 10; i++) {
-            final int slot = i;
-            KeyCode key = KeyCode.getKeyCode(String.valueOf(i == 9 ? 0 : i + 1));
-            input.addAction(new UserAction("Hotbar " + slot) {
-                @Override
-                protected void onActionBegin() {
-                    if (player == null) return;
-                    player.getComponent(PlayerComponent.class).setSelectedHotbarSlot(slot);
-                    refreshHotbar();
-                }
-            }, key);
         }
-    }
+
 
     // ─── UI ────────────────────────────────────────────────────────────────────
 
-    @Override
-    protected void initUI() {
-        showMainMenu();
-    }
+@Override
+protected void initUI() {
+    showMainMenu();
+}
 
     @Override
     protected void onUpdate(double tpf) {
@@ -342,136 +341,12 @@ public class GameApp extends GameApplication {
         });
     }
 
-    // ─── Inventory UI ──────────────────────────────────────────────────────────
 
-    private StackPane createSlot(int size, int index, String slotType) {
-        StackPane slot = new StackPane();
-        slot.setPrefSize(size, size);
-        slot.setStyle("-fx-border-color: gray; -fx-border-width: 2; -fx-background-color: #555;");
-
-        slot.setOnMouseClicked(e -> {
-            PlayerComponent pc = player.getComponent(PlayerComponent.class);
-            List<InventoryItem> targetList = getSlotList(pc, slotType);
-
-            if (selectedSlotIndex == -1) {
-                if (targetList.get(index) != null) {
-                    selectedSlotIndex = index;
-                    selectedSlotType = slotType;
-                    slot.setStyle("-fx-border-color: yellow; -fx-border-width: 2; -fx-background-color: #555;");
-                }
-            } else {
-                List<InventoryItem> fromList = getSlotList(pc, selectedSlotType);
-                InventoryItem temp = fromList.get(selectedSlotIndex);
-                fromList.set(selectedSlotIndex, targetList.get(index));
-                targetList.set(index, temp);
-
-                selectedSlotIndex = -1;
-                selectedSlotType = "";
-                refreshAll();
-            }
-        });
-
-        PlayerComponent pc = player.getComponent(PlayerComponent.class);
-        List<InventoryItem> list = getSlotList(pc, slotType);
-        if (list.get(index) != null) {
-            InventoryItem item = list.get(index);
-
-            Texture icon = item.getIcon();
-            icon.setFitWidth(size - 8);
-            icon.setFitHeight(size - 8);
-
-            Label countLabel = new Label(String.valueOf(item.getCount()));
-            countLabel.setStyle("-fx-text-fill: white; -fx-font-size: 10;");
-            StackPane.setAlignment(countLabel, Pos.BOTTOM_RIGHT);
-
-            slot.getChildren().addAll(icon, countLabel);
-        }
-
-        return slot;
-    }
-
-    private List<InventoryItem> getSlotList(PlayerComponent pc, String slotType) {
-        return switch (slotType) {
-            case "hotbar" -> pc.getHotbar();
-            case "armor"  -> pc.getArmor();
-            default       -> pc.getInventory();
-        };
-    }
-
-    private void initInventory() {
-        // Main inventory
-        inventoryRoot = new GridPane();
-        inventoryRoot.setHgap(4);
-        inventoryRoot.setVgap(4);
-        inventoryRoot.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-padding: 10;");
-        inventoryRoot.setTranslateX(25);
-        inventoryRoot.setTranslateY(25);
-        inventoryRoot.setVisible(false);
-        getGameScene().addUINode(inventoryRoot);
-
-        // Armor
-        armorRoot = new GridPane();
-        armorRoot.setHgap(4);
-        armorRoot.setVgap(4);
-        armorRoot.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-padding: 10;");
-        armorRoot.setTranslateX(25 + (Config.INVENTORY_COLS * (Config.INVENTORY_SLOT_SIZE + 4)) + 20);
-        armorRoot.setTranslateY(25);
-        armorRoot.setVisible(false);
-        getGameScene().addUINode(armorRoot);
-
-        // Hotbar — hamesha visible, screen ke neeche
-        hotbarRoot = new GridPane();
-        hotbarRoot.setHgap(4);
-        hotbarRoot.setVgap(4);
-        hotbarRoot.setStyle("-fx-background-color: rgba(0,0,0,0.7); -fx-padding: 6;");
-        hotbarRoot.setTranslateX((FXGL.getAppWidth() / 2.0) - (10 * (Config.INVENTORY_SLOT_SIZE + 4)) / 2.0);
-        hotbarRoot.setTranslateY(FXGL.getAppHeight() - Config.INVENTORY_SLOT_SIZE - 20);
-        getGameScene().addUINode(hotbarRoot);
-
-        refreshAll();
-    }
-
-    private void refreshInventory() {
-        inventoryRoot.getChildren().clear();
-        for (int row = 0; row < Config.INVENTORY_ROWS; row++) {
-            for (int col = 0; col < Config.INVENTORY_COLS; col++) {
-                int index = row * Config.INVENTORY_COLS + col;
-                inventoryRoot.add(createSlot(Config.INVENTORY_SLOT_SIZE, index, "inventory"), col, row);
-            }
-        }
-    }
-
-    private void refreshHotbar() {
-        hotbarRoot.getChildren().clear();
-        PlayerComponent pc = player.getComponent(PlayerComponent.class);
-        for (int i = 0; i < 10; i++) {
-            StackPane slot = createSlot(Config.INVENTORY_SLOT_SIZE, i, "hotbar");
-            if (i == pc.getSelectedHotbarSlot()) {
-                slot.setStyle("-fx-border-color: white; -fx-border-width: 2; -fx-background-color: #777;");
-            }
-            hotbarRoot.add(slot, i, 0);
-        }
-    }
-
-    private void refreshArmor() {
-        armorRoot.getChildren().clear();
-        String[] armorLabels = {"Helmet", "Chestplate", "Leggings", "Boots"};
-        for (int i = 0; i < 4; i++) {
-            VBox slotWithLabel = new VBox(2);
-            slotWithLabel.setAlignment(Pos.CENTER);
-            Label label = new Label(armorLabels[i]);
-            label.setStyle("-fx-text-fill: white; -fx-font-size: 9;");
-            StackPane slot = createSlot(Config.INVENTORY_SLOT_SIZE, i, "armor");
-            slotWithLabel.getChildren().addAll(label, slot);
-            armorRoot.add(slotWithLabel, 0, i);
-        }
-    }
 
     private void refreshAll() {
-        if (inventoryRoot == null) return;
-        refreshInventory();
-        refreshHotbar();
-        refreshArmor();
+        inventoryUI.refresh();
+        hotbarUI.refresh();
+        armorUI.refresh();
         if (craftingMenu != null) craftingMenu.refresh();
     }
 
@@ -584,6 +459,15 @@ public class GameApp extends GameApplication {
         double spawnWorldX = spawnTileX * Config.TILE_SIZE;
         double spawnWorldY = spawnSurfaceY * Config.TILE_SIZE - PLAYER_BBOX_HEIGHT - 1;
         player = spawn("player", new SpawnData(spawnWorldX, spawnWorldY));
+
+        inventoryUI.init();
+        inventoryUI.setPlayer(player);
+
+        armorUI.init();
+        armorUI.setPlayer(player);
+
+        hotbarUI.init();
+        hotbarUI.setPlayer(player);
         craftingMenu = new CraftingMenu(player);
         craftingMenu.init();
 
@@ -606,7 +490,7 @@ public class GameApp extends GameApplication {
         FXGL.getGameScene().getViewport().setZoom(1.55);
         updateLoadedTerrainWindow(true);
 
-        initInventory();
+
 
         displayHpBar();
     }
