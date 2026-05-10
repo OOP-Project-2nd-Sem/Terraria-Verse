@@ -20,6 +20,7 @@ public final class Config {
     public static final int STONE_TEX_ROW = 21;
     public static final int STONE_TEX_COL = 22;
 
+
     public enum BlockType {
 
         // -------------------------------------------------------------------------

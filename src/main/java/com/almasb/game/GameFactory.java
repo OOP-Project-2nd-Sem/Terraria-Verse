@@ -97,12 +97,16 @@ public class GameFactory implements EntityFactory {
     }
 
     private Entity createBlock(SpawnData data, Texture blockTex, double minetime) {
+        PhysicsComponent physics = new PhysicsComponent();
+        physics.setBodyType(BodyType.STATIC);
+
         return entityBuilder(data)
                 .type(EntityType.BLOCK)
                 .view(blockTex.copy())
                 .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
-                .with(new PhysicsComponent())
+                .with(physics)
                 .with("mine_time", minetime)
+                .neverUpdated()
                 .collidable()
                 .build();
     }
@@ -193,14 +197,18 @@ public class GameFactory implements EntityFactory {
              mineTime = 0.3;
          }
 
+         PhysicsComponent physics = new PhysicsComponent();
+         physics.setBodyType(BodyType.STATIC);
+
          return entityBuilder(data)
                  // Use the math we established earlier
                  .view(texture("textures_02_08_25.png")
                          .subTexture(new Rectangle2D(type.col * 16, type.row * 16, 16, 16)).copy())
                  .bbox(new HitBox(BoundingShape.box(16, 16)))
-                 .with(new PhysicsComponent())
+                 .with(physics)
                  .with("mine_time", mineTime)
                  .type(EntityType.BLOCK)
+                 .neverUpdated()
                  .collidable()
                  .build();
      }

@@ -22,13 +22,29 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
 
 public class GameApp extends GameApplication {
 
     private Entity player, background;
+    private final Map<Long, Entity> activeTerrainBlocks = new HashMap<>();
+    private Config.BlockType[][] terrainMap;
+
+    private static final int MAP_WIDTH_TILES = 80;
+    private static final int MAP_HEIGHT_TILES = 60;
+    private static final int VIEW_WIDTH_TILES = 40;
+    private static final int VIEW_HEIGHT_TILES = 30;
+    private static final int ACTIVE_TERRAIN_MARGIN_TILES = 4;
+    private static final int SURFACE_HEIGHT_TILE = 20;
+
+    private int loadedMinTileX = Integer.MAX_VALUE;
+    private int loadedMaxTileX = Integer.MIN_VALUE;
+    private int loadedMinTileY = Integer.MAX_VALUE;
+    private int loadedMaxTileY = Integer.MIN_VALUE;
 
     // UI roots
     private GridPane inventoryRoot;
@@ -51,8 +67,10 @@ public class GameApp extends GameApplication {
 
     @Override
     protected void initSettings(GameSettings settings) {
-        settings.setWidth(Config.TILE_SIZE * 80);
-        settings.setHeight(Config.TILE_SIZE * 60);
+        settings.setWidth(Config.TILE_SIZE * VIEW_WIDTH_TILES);
+        settings.setHeight(Config.TILE_SIZE * VIEW_HEIGHT_TILES);
+        settings.setProfilingEnabled(false);
+        settings.addEngineService(MiniProfilerService.class);
     }
 
     // ─── Input ─────────────────────────────────────────────────────────────────
@@ -143,7 +161,12 @@ public class GameApp extends GameApplication {
                             .put("width", 10)
                             .put("height", 10)
                             .put("count", 1));
-                    blockToMine.removeFromWorld();
+
+                    int tileX = worldToTile(blockToMine.getX());
+                    int tileY = worldToTile(blockToMine.getY());
+
+                    setTerrainTile(tileX, tileY, null);
+                    despawnTerrainTile(tileX, tileY);
                 }, Duration.seconds(mineTime));
             }
 
@@ -184,15 +207,26 @@ public class GameApp extends GameApplication {
                 if (itemToPlace == null) return;
 
                 String itemName = itemToPlace.getName().toLowerCase();
-                String spawnType = "";
+                Config.BlockType placedType;
 
-                if (itemName.contains("grass")) spawnType = "grass";
-                else if (itemName.contains("stone")) spawnType = "stone";
-                else return;
+                if (itemName.contains("grass")) {
+                    placedType = Config.BlockType.GRASS_TOP_LAYER_1;
+                } else if (itemName.contains("stone")) {
+                    placedType = Config.BlockType.GENERIC_STONE_1;
+                } else {
+                    return;
+                }
 
-                FXGL.spawn(spawnType, new SpawnData(snapped.getX(), snapped.getY())
-                        .put("width", Config.TILE_SIZE)
-                        .put("height", Config.TILE_SIZE));
+                int tileX = worldToTile(snapped.getX());
+                int tileY = worldToTile(snapped.getY());
+
+                if (!isInMapBounds(tileX, tileY)) return;
+                if (getTerrainTile(tileX, tileY) != null) return;
+
+                setTerrainTile(tileX, tileY, placedType);
+                if (isWithinLoadedWindow(tileX, tileY)) {
+                    spawnTerrainTile(tileX, tileY, placedType);
+                }
 
                 itemToPlace.setCount(itemToPlace.getCount() - 1);
                 if (itemToPlace.getCount() <= 0) {
@@ -254,6 +288,11 @@ public class GameApp extends GameApplication {
     @Override
     protected void initUI() {
         showMainMenu();
+    }
+
+    @Override
+    protected void onUpdate(double tpf) {
+        updateLoadedTerrainWindowIfCameraMoved();
     }
 
     // ─── Physics ───────────────────────────────────────────────────────────────
@@ -513,11 +552,13 @@ public class GameApp extends GameApplication {
     private void startGame(String characterName, String world) {
         currentCharacterName = characterName;
         FXGL.getGameScene().clearUINodes();
-        FXGL.getGameScene().getViewport().setBounds(0, 0, 80 * 16, 60 * 16);
+        activeTerrainBlocks.clear();
+        resetLoadedTerrainWindow();
+        FXGL.getGameScene().getViewport().setBounds(0, 0, MAP_WIDTH_TILES * Config.TILE_SIZE, MAP_HEIGHT_TILES * Config.TILE_SIZE);
         // load world + player
         generateMap();
         // Player spawns on the surface (grass layer) in the center of the map
-        player = spawn("player", new SpawnData(40 * 16, (20 - 2) * 16));
+        player = spawn("player", new SpawnData(40 * Config.TILE_SIZE, (SURFACE_HEIGHT_TILE - 2) * Config.TILE_SIZE));
 
         //Test enemy
         spawn("enemy", new SpawnData(player.getX() + 300, player.getY() - 100).put("type", EnemyType.SLIME));
@@ -535,6 +576,7 @@ public class GameApp extends GameApplication {
                 (int)(FXGL.getAppWidth() / 2.0),
                 (int)(FXGL.getAppHeight() / 2.0)
         );
+        updateLoadedTerrainWindow(true);
 
         initInventory();
 
@@ -547,6 +589,9 @@ public class GameApp extends GameApplication {
         FXGL.getGameScene().clearUINodes();
 
         player = null;
+        activeTerrainBlocks.clear();
+        terrainMap = null;
+        resetLoadedTerrainWindow();
 
         showMainMenu();
     }
@@ -563,6 +608,116 @@ public class GameApp extends GameApplication {
         int snappedX = (int) Math.floor(worldX / Config.TILE_SIZE) * Config.TILE_SIZE;
         int snappedY = (int) Math.floor(worldY / Config.TILE_SIZE) * Config.TILE_SIZE;
         return new Point2D(snappedX, snappedY);
+    }
+
+    private int worldToTile(double worldCoord) {
+        return (int) Math.floor(worldCoord / Config.TILE_SIZE);
+    }
+
+    private long tileKey(int tileX, int tileY) {
+        return (((long) tileX) << 32) | (tileY & 0xffffffffL);
+    }
+
+    private boolean isInMapBounds(int tileX, int tileY) {
+        return tileX >= 0 && tileX < MAP_WIDTH_TILES && tileY >= 0 && tileY < MAP_HEIGHT_TILES;
+    }
+
+    private Config.BlockType getTerrainTile(int tileX, int tileY) {
+        if (terrainMap == null || !isInMapBounds(tileX, tileY)) {
+            return null;
+        }
+        return terrainMap[tileY][tileX];
+    }
+
+    private void setTerrainTile(int tileX, int tileY, Config.BlockType type) {
+        if (terrainMap == null || !isInMapBounds(tileX, tileY)) {
+            return;
+        }
+        terrainMap[tileY][tileX] = type;
+    }
+
+    private boolean isWithinLoadedWindow(int tileX, int tileY) {
+        return tileX >= loadedMinTileX && tileX <= loadedMaxTileX
+                && tileY >= loadedMinTileY && tileY <= loadedMaxTileY;
+    }
+
+    private Entity spawnTerrainTile(int tileX, int tileY, Config.BlockType type) {
+        long key = tileKey(tileX, tileY);
+        Entity existing = activeTerrainBlocks.get(key);
+        if (existing != null && existing.isActive()) {
+            return existing;
+        }
+
+        Entity block = spawn("block", new SpawnData(tileX * Config.TILE_SIZE, tileY * Config.TILE_SIZE).put("type", type));
+        activeTerrainBlocks.put(key, block);
+        return block;
+    }
+
+    private void despawnTerrainTile(int tileX, int tileY) {
+        Entity block = activeTerrainBlocks.remove(tileKey(tileX, tileY));
+        if (block != null && block.isActive()) {
+            block.removeFromWorld();
+        }
+    }
+
+    private void resetLoadedTerrainWindow() {
+        loadedMinTileX = Integer.MAX_VALUE;
+        loadedMaxTileX = Integer.MIN_VALUE;
+        loadedMinTileY = Integer.MAX_VALUE;
+        loadedMaxTileY = Integer.MIN_VALUE;
+    }
+
+    private void updateLoadedTerrainWindowIfCameraMoved() {
+        updateLoadedTerrainWindow(false);
+    }
+
+    private void updateLoadedTerrainWindow(boolean force) {
+        if (player == null || terrainMap == null) {
+            return;
+        }
+
+        Rectangle2D visibleArea = FXGL.getGameScene().getViewport().getVisibleArea();
+
+        int minTileX = Math.max(0, worldToTile(visibleArea.getMinX()) - ACTIVE_TERRAIN_MARGIN_TILES);
+        int maxTileX = Math.min(MAP_WIDTH_TILES - 1, worldToTile(visibleArea.getMaxX()) + ACTIVE_TERRAIN_MARGIN_TILES);
+        int minTileY = Math.max(0, worldToTile(visibleArea.getMinY()) - ACTIVE_TERRAIN_MARGIN_TILES);
+        int maxTileY = Math.min(MAP_HEIGHT_TILES - 1, worldToTile(visibleArea.getMaxY()) + ACTIVE_TERRAIN_MARGIN_TILES);
+
+        if (!force
+                && minTileX == loadedMinTileX && maxTileX == loadedMaxTileX
+                && minTileY == loadedMinTileY && maxTileY == loadedMaxTileY) {
+            return;
+        }
+
+        activeTerrainBlocks.entrySet().removeIf(entry -> {
+            long key = entry.getKey();
+            int tileX = (int) (key >> 32);
+            int tileY = (int) key;
+
+            boolean inside = tileX >= minTileX && tileX <= maxTileX && tileY >= minTileY && tileY <= maxTileY;
+            if (!inside) {
+                Entity block = entry.getValue();
+                if (block != null && block.isActive()) {
+                    block.removeFromWorld();
+                }
+                return true;
+            }
+            return false;
+        });
+
+        for (int y = minTileY; y <= maxTileY; y++) {
+            for (int x = minTileX; x <= maxTileX; x++) {
+                Config.BlockType type = terrainMap[y][x];
+                if (type != null) {
+                    spawnTerrainTile(x, y, type);
+                }
+            }
+        }
+
+        loadedMinTileX = minTileX;
+        loadedMaxTileX = maxTileX;
+        loadedMinTileY = minTileY;
+        loadedMaxTileY = maxTileY;
     }
 
     private void displayHpBar() {
@@ -608,17 +763,17 @@ public class GameApp extends GameApplication {
     }
 
     public void generateMap() {
-        int mapWidth = 80;
-        int mapHeight = 60;
-        int surfaceHeight = 20; // Height where grass appears
-        int tileSize = 16;
+        int mapWidth = MAP_WIDTH_TILES;
+        int mapHeight = MAP_HEIGHT_TILES;
+        int surfaceHeight = SURFACE_HEIGHT_TILE; // Height where grass appears
+
+        terrainMap = new Config.BlockType[mapHeight][mapWidth];
+        activeTerrainBlocks.clear();
+        resetLoadedTerrainWindow();
 
         // Ground generation - layers of grass/dirt/stone
         for (int x = 0; x < mapWidth; x++) {
             for (int y = surfaceHeight; y < mapHeight; y++) {
-                double posX = x * tileSize;
-                double posY = y * tileSize;
-
                 Config.BlockType type;
                 int depthFromSurface = y - surfaceHeight;
 
@@ -672,15 +827,35 @@ public class GameApp extends GameApplication {
                     type = Config.BlockType.DARK_BED_ROCK_1;
                 }
 
-                spawn("block", new SpawnData(posX, posY).put("type", type));
+                terrainMap[y][x] = type;
             }
         }
 
         // Generate trees scattered across the surface (on top of the grass)
-        generateTrees(mapWidth, surfaceHeight, tileSize);
+        generateTrees(mapWidth, surfaceHeight);
     }
 
-    private void generateTrees(int mapWidth, int surfaceHeight, int tileSize) {
+    public int getActiveTerrainBlockCount() {
+        return activeTerrainBlocks.size();
+    }
+
+    public int getTotalTerrainBlockCount() {
+        if (terrainMap == null) {
+            return 0;
+        }
+
+        int total = 0;
+        for (int y = 0; y < terrainMap.length; y++) {
+            for (int x = 0; x < terrainMap[y].length; x++) {
+                if (terrainMap[y][x] != null) {
+                    total++;
+                }
+            }
+        }
+        return total;
+    }
+
+    private void generateTrees(int mapWidth, int surfaceHeight) {
         // Trees spawn at roughly 12% density - only on the surface grass
         for (int x = 0; x < mapWidth; x += 8) {
             int randomOffset = FXGL.random(0, 7);
@@ -688,23 +863,17 @@ public class GameApp extends GameApplication {
 
             if (treeX < mapWidth && FXGL.random(0, 100) < 60) {
                 // Tree position - trunk sits on top of the grass block
-                double treePosX = treeX * tileSize;
-                double treePosY = (surfaceHeight - 2) * tileSize;  // On top of grass
+                int trunkY = surfaceHeight - 2;
+                int topY = trunkY - 1;
 
-                // Spawn trunk (OAK_TREE_BOTTOM)
-                spawn("block", new SpawnData(treePosX, treePosY).put("type", Config.BlockType.OAK_TREE_BOTTOM));
+                setTerrainTile(treeX, trunkY, Config.BlockType.OAK_TREE_BOTTOM);
+                setTerrainTile(treeX, topY, Config.BlockType.OAK_TREE_TOP);
 
-                // Spawn tree top (OAK_TREE_TOP) - one block above trunk
-                spawn("block", new SpawnData(treePosX, treePosY - tileSize).put("type", Config.BlockType.OAK_TREE_TOP));
-
-                // Spawn leaves around the tree top (but NOT above the surface)
-                // Layer 1 - 3 leaves at same height as tree top
-                spawn("block", new SpawnData(treePosX - tileSize, treePosY - tileSize).put("type", Config.BlockType.LEAF_VARIANT_1));
-                spawn("block", new SpawnData(treePosX + tileSize, treePosY - tileSize).put("type", Config.BlockType.LEAF_VARIANT_1));
-
-                // Layer 2 - 2 leaves slightly above
-                spawn("block", new SpawnData(treePosX - tileSize, treePosY - 2 * tileSize).put("type", Config.BlockType.LEAF_VARIANT_1));
-                spawn("block", new SpawnData(treePosX + tileSize, treePosY - 2 * tileSize).put("type", Config.BlockType.LEAF_VARIANT_1));
+                // Leaves around the top
+                setTerrainTile(treeX - 1, topY, Config.BlockType.LEAF_VARIANT_1);
+                setTerrainTile(treeX + 1, topY, Config.BlockType.LEAF_VARIANT_1);
+                setTerrainTile(treeX - 1, topY - 1, Config.BlockType.LEAF_VARIANT_1);
+                setTerrainTile(treeX + 1, topY - 1, Config.BlockType.LEAF_VARIANT_1);
             }
         }
     }
