@@ -107,7 +107,7 @@ public class InventoryUI {
                 fromList.set(selection.getIndex(), inventory.get(index));
                 inventory.set(index, temp);
                 selection.clear();
-                refresh();
+                onSwap.run();
             }
         });
 

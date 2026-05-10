@@ -60,7 +60,7 @@ public class GameApp extends GameApplication {
     private int loadedMinTileY = Integer.MAX_VALUE;
     private int loadedMaxTileY = Integer.MIN_VALUE;
 
-    private long worldSeed;
+    private long worldSeed=1337L;
     private TerrainNoiseGenerator terrainNoise;
 
     // UI roots
@@ -261,8 +261,8 @@ public class GameApp extends GameApplication {
                 @Override
                 protected void onActionBegin() {
                     if (player == null) return;
-                    player.getComponent(PlayerComponent.class).setSelectedHotbarSlot(slot);
-                    if (hotbarUI != null) hotbarUI.refresh();  // ← changed
+                    selectionState.select(slot, "hotbar");
+                    hotbarUI.refresh();
                 }
             }, key);
         }
@@ -691,7 +691,7 @@ protected void initUI() {
 
         hotbarUI.init();
         hotbarUI.setPlayer(player);
-        craftingMenu = new CraftingMenu(player);
+        craftingMenu = new CraftingMenu(player, refreshAll);
         craftingMenu.init();
 
         //Test enemy

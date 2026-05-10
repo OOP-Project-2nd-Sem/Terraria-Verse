@@ -10,27 +10,6 @@ import javafx.scene.layout.StackPane;
 
 import java.util.List;
 
-/**
- * Always-visible hotbar at the bottom of the screen.
- *
- * Integration in GameApp
- * ──────────────────────
- * Field:
- *     private final HotbarUI hotbarUI = new HotbarUI(selectionState);
- *
- * In initUI() or wherever you set up static UI:
- *     hotbarUI.init();
- *
- * After player spawns (in startGame()):
- *     hotbarUI.setPlayer(player);
- *
- * Hotbar number keys:
- *     player.getComponent(PlayerComponent.class).setSelectedHotbarSlot(slot);
- *     hotbarUI.refresh();
- *
- * In refreshAll():
- *     hotbarUI.refresh();
- */
 public class HotbarUI {
 
     private static final int HOTBAR_SLOTS = 10;
@@ -70,13 +49,9 @@ public class HotbarUI {
     public void refresh() {
         if (root == null || player == null) return;
         root.getChildren().clear();
-        PlayerComponent pc = player.getComponent(PlayerComponent.class);
 
         for (int i = 0; i < HOTBAR_SLOTS; i++) {
             StackPane slot = createSlot(Config.INVENTORY_SLOT_SIZE, i);
-            if (i == pc.getSelectedHotbarSlot()) {
-                slot.setStyle("-fx-border-color: white; -fx-border-width: 2; -fx-background-color: #777;");
-            }
             root.add(slot, i, 0);
         }
     }
@@ -103,7 +78,7 @@ public class HotbarUI {
                 fromList.set(selection.getIndex(), hotbar.get(index));
                 hotbar.set(index, temp);
                 selection.clear();
-                refresh();
+                onSwap.run();
             }
         });
 

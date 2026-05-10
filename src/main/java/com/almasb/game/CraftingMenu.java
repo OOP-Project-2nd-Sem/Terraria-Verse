@@ -40,6 +40,7 @@ public class CraftingMenu {
 
     // ── State ─────────────────────────────────────────────────────────────────
     private final Entity player;
+    private final Runnable onCraft;
     private VBox         rootPane;
     private VBox         recipeListBox;
     private boolean      visible      = false;
@@ -61,8 +62,9 @@ public class CraftingMenu {
     private HBox           selectedRow    = null;
 
     // ── Constructor ───────────────────────────────────────────────────────────
-    public CraftingMenu(Entity player) {
+    public CraftingMenu(Entity player, Runnable onCraft) {
         this.player = player;
+        this.onCraft=onCraft;
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -466,7 +468,7 @@ public class CraftingMenu {
                 selectedRecipe.getResultName(), selectedRecipe.getResultCount(), selectedRecipe.getResultCategory());
         if (result != null) addToInventory(pc, result);
 
-        refresh();
+        onCraft.run();
 
         if (selectedRecipe != null) {
             boolean can = (activeTab == TAB_HAND)

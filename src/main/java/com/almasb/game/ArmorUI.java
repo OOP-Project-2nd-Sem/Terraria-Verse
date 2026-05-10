@@ -94,7 +94,7 @@ public class ArmorUI {
                 fromList.set(selection.getIndex(), armor.get(index));
                 armor.set(index, temp);
                 selection.clear();
-                refresh();
+                onSwap.run();
             }
         });
 
