@@ -3,23 +3,30 @@ package com.almasb.game;
 import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.texture.Texture;
 
-
-
-
 public class InventoryItem {
+
+    public enum ItemCategory { BLOCK, ITEM, TOOL, ARMOR }
+
     private String name;
     private int count;
+    private ItemCategory category;
     private transient Texture icon;
 
-    public InventoryItem(String name, int count, Texture icon) {
-        this.name = name;
-        this.count = count;
-        this.icon = icon;
+    public InventoryItem(String name, int count, ItemCategory category, Texture icon) {
+        this.name     = name;
+        this.count    = count;
+        this.category = category;
+        this.icon     = icon;
     }
 
-    // JSON load hone ke baad config se reload karo
     public void initTexture() {
-        this.icon = Config.getTexture(getBlockTypeForName(name));
+        if(this.category == null){
+            this.category = CraftingRecipe.categoryOf(this.name);
+        }
+        this.icon = switch (category) {
+            case BLOCK        -> Config.getTexture(getBlockTypeForName(name));
+            case ITEM, TOOL, ARMOR -> Config.getItemTexture(getItemTypeForName(name));
+        };
     }
 
     private Config.BlockType getBlockTypeForName(String name) {
@@ -40,8 +47,19 @@ public class InventoryItem {
         };
     }
 
-    public String getName() { return name; }
-    public int getCount() { return count; }
-    public Texture getIcon() { return icon; }
-    public void setCount(int count) { this.count = count; }
+    private Config.ItemType getItemTypeForName(String name) {
+        return switch (name.toLowerCase()) {
+            case "torch"   -> Config.ItemType.TORCH;
+            case "stick"   -> Config.ItemType.STICK;
+            case "wooden_pickaxe"->Config.ItemType.WOODEN_PICKAXE;
+            // add more items/tools/armor here...
+            default        -> Config.ItemType.EYE;
+        };
+    }
+
+    public String getName()           { return name; }
+    public int getCount()             { return count; }
+    public ItemCategory getCategory() { return category; }
+    public Texture getIcon()          { return icon; }
+    public void setCount(int count)   { this.count = count; }
 }

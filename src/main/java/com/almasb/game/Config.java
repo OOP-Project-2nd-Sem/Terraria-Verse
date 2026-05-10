@@ -352,6 +352,25 @@ public final class Config {
                         TILE_SIZE
                 ));
     }
+    public enum ItemType {
+        TORCH(720),
+        STICK(1010),
+        WOODEN_PICKAXE(21),
+        EYE(1169)
+        ;
+
+        public final int i;
+        ItemType(int i) {
+            this.i=i;
+        }
+        public String getTexturePath() {
+        return "items/item" + i + ".png";
+        }
+    }
+
+public static Texture getItemTexture(ItemType itemType) {
+    return FXGL.texture(itemType.getTexturePath());
+}
 
     public static final Texture GRASS_TEX = getTexture(SURFACE_GRASS_BLOCK);
     public static final Texture STONE_TEX = getTexture(DEFAULT_STONE_BLOCK);

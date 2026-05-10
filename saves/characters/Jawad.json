@@ -9,9 +9,21 @@
   "mana": 20,
   "maxMana": 20,
   "inventory": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
     {
-      "name": "plank",
-      "count": 4
+      "name": "crafting_table",
+      "count": 1,
+      "category": "BLOCK"
     },
     null,
     null,
@@ -22,19 +34,16 @@
     null,
     null,
     null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
+    {
+      "name": "wooden_pickaxe",
+      "count": 2,
+      "category": "ITEM"
+    },
+    {
+      "name": "stick",
+      "count": 4,
+      "category": "ITEM"
+    },
     null,
     null,
     null,
@@ -56,15 +65,18 @@
   "hotbar": [
     {
       "name": "grass",
-      "count": 70
+      "count": 70,
+      "category": "BLOCK"
     },
     {
       "name": "stone",
-      "count": 5
+      "count": 5,
+      "category": "BLOCK"
     },
     {
       "name": "Wood",
-      "count": 1
+      "count": 1,
+      "category": "BLOCK"
     },
     null,
     null,

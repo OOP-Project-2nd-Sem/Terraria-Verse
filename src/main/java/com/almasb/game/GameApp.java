@@ -170,8 +170,8 @@ public class GameApp extends GameApplication {
                 timer = FXGL.getGameTimer().runOnceAfter(() -> {
                     spawn("item", new SpawnData(blockToMine.getX(), blockToMine.getY())
                             .put("type", itemName)
-                            .put("width", 10)
-                            .put("height", 10)
+                            .put("width", 8)
+                            .put("height", 8)
                             .put("count", 1));
 
                     int tileX = worldToTile(blockToMine.getX());

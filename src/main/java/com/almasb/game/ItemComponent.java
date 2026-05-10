@@ -8,20 +8,22 @@ import com.almasb.fxgl.texture.Texture;
 public class ItemComponent extends Component {
     private String name;
     private int count;
+    private InventoryItem.ItemCategory category;
     private transient Texture icon;
 
-    public ItemComponent(String name, int count, Texture icon) {
-        this.name = name;
-        this.count = count;
-        this.icon = icon;
+    public ItemComponent(String name, int count, InventoryItem.ItemCategory category, Texture icon) {
+        this.name     = name;
+        this.count    = count;
+        this.category = category;
+        this.icon     = icon;
     }
 
-    // Pickup hone par InventoryItem banao
     public InventoryItem toInventoryItem() {
-        return new InventoryItem(name, count, icon);
+        return new InventoryItem(name, count, category, icon);
     }
 
-    public String getName() { return name; }
-    public int getCount() { return count; }
-    public Texture getIcon() { return icon; }
+    public String getName()                    { return name; }
+    public int getCount()                      { return count; }
+    public InventoryItem.ItemCategory getCategory() { return category; }
+    public Texture getIcon()                   { return icon; }
 }

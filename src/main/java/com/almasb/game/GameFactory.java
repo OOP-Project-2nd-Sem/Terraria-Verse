@@ -124,16 +124,20 @@ public class GameFactory implements EntityFactory {
      @Spawns("item")
      public Entity newItem(SpawnData data) {
          String itemType = data.get("type");
+         InventoryItem.ItemCategory category = CraftingRecipe.categoryOf(itemType);
 
          // Get texture based on item type
          Texture itemTex = getItemTexture(itemType);
          Texture worldView = itemTex.copy();
          Texture inventoryView = itemTex.copy();
+         // Scale world view to 80%
+         worldView.setFitWidth(worldView.getImage().getWidth() * 0.6);
+         worldView.setFitHeight(worldView.getImage().getHeight() * 0.6);
 
          PhysicsComponent physics = new PhysicsComponent();
          physics.setBodyType(BodyType.DYNAMIC);
          return entityBuilder(data)
-                 .with(new ItemComponent(itemType, data.get("count"), inventoryView))
+                 .with(new ItemComponent(itemType, data.get("count"), category, inventoryView))
                  .type(EntityType.ITEM)
                  .view(worldView)
                  .bbox(new HitBox(BoundingShape.box(data.<Integer>get("width"), data.<Integer>get("height"))))
