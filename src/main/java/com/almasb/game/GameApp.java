@@ -33,18 +33,26 @@ public class GameApp extends GameApplication {
     private Entity player, background;
     private final Map<Long, Entity> activeTerrainBlocks = new HashMap<>();
     private Config.BlockType[][] terrainMap;
+    private int[] surfaceHeights;
 
-    private static final int MAP_WIDTH_TILES = 80;
-    private static final int MAP_HEIGHT_TILES = 60;
-    private static final int VIEW_WIDTH_TILES = 40;
-    private static final int VIEW_HEIGHT_TILES = 30;
-    private static final int ACTIVE_TERRAIN_MARGIN_TILES = 4;
+    private static final int MAP_WIDTH_TILES = 120;
+    private static final int MAP_HEIGHT_TILES = 80;
+    private static final int VIEW_WIDTH_TILES = 64;
+    private static final int VIEW_HEIGHT_TILES = 40;
+    private static final int ACTIVE_TERRAIN_MARGIN_TILES = 1;
     private static final int SURFACE_HEIGHT_TILE = 20;
+    private static final int PLAYER_BBOX_HEIGHT = 19;
+    private static final int PLAYER_SAFE_LOAD_RADIUS_X = 10;
+    private static final int PLAYER_SAFE_LOAD_RADIUS_Y = 8;
+    private static final boolean USE_NOISE_TERRAIN_GENERATION = true;
 
     private int loadedMinTileX = Integer.MAX_VALUE;
     private int loadedMaxTileX = Integer.MIN_VALUE;
     private int loadedMinTileY = Integer.MAX_VALUE;
     private int loadedMaxTileY = Integer.MIN_VALUE;
+
+    private long worldSeed = 1337L;
+    private TerrainNoiseGenerator terrainNoise;
 
     // UI roots
     private GridPane inventoryRoot;
@@ -206,14 +214,8 @@ public class GameApp extends GameApplication {
 
                 if (itemToPlace == null) return;
 
-                String itemName = itemToPlace.getName().toLowerCase();
-                Config.BlockType placedType;
-
-                if (itemName.contains("grass")) {
-                    placedType = Config.BlockType.GRASS_TOP_LAYER_1;
-                } else if (itemName.contains("stone")) {
-                    placedType = Config.BlockType.GENERIC_STONE_1;
-                } else {
+                Config.BlockType placedType = resolveBlockTypeForItemName(itemToPlace.getName());
+                if (placedType == null) {
                     return;
                 }
 
@@ -551,14 +553,25 @@ public class GameApp extends GameApplication {
 
     private void startGame(String characterName, String world) {
         currentCharacterName = characterName;
+        terrainNoise = new TerrainNoiseGenerator(worldSeed);
         FXGL.getGameScene().clearUINodes();
         activeTerrainBlocks.clear();
         resetLoadedTerrainWindow();
         FXGL.getGameScene().getViewport().setBounds(0, 0, MAP_WIDTH_TILES * Config.TILE_SIZE, MAP_HEIGHT_TILES * Config.TILE_SIZE);
         // load world + player
         generateMap();
-        // Player spawns on the surface (grass layer) in the center of the map
-        player = spawn("player", new SpawnData(40 * Config.TILE_SIZE, (SURFACE_HEIGHT_TILE - 2) * Config.TILE_SIZE));
+        // Player spawns on surface near center of the map
+        int spawnTileX = findSafeSpawnTileX(MAP_WIDTH_TILES / 2);
+        int spawnSurfaceY = (surfaceHeights != null) ? surfaceHeights[spawnTileX] : SURFACE_HEIGHT_TILE;
+        if (isInMapBounds(spawnTileX, spawnSurfaceY) && getTerrainTile(spawnTileX, spawnSurfaceY) == null) {
+            setTerrainTile(spawnTileX, spawnSurfaceY, Config.SURFACE_GRASS_BLOCK);
+        }
+        ensureSpawnPlatform(spawnTileX, spawnSurfaceY);
+        clearSpawnArea(spawnTileX, spawnSurfaceY);
+        preloadTerrainWindowAround(spawnTileX, spawnSurfaceY);
+        double spawnWorldX = spawnTileX * Config.TILE_SIZE;
+        double spawnWorldY = spawnSurfaceY * Config.TILE_SIZE - PLAYER_BBOX_HEIGHT - 1;
+        player = spawn("player", new SpawnData(spawnWorldX, spawnWorldY));
 
         //Test enemy
         spawn("enemy", new SpawnData(player.getX() + 300, player.getY() - 100).put("type", EnemyType.SLIME));
@@ -576,6 +589,7 @@ public class GameApp extends GameApplication {
                 (int)(FXGL.getAppWidth() / 2.0),
                 (int)(FXGL.getAppHeight() / 2.0)
         );
+        FXGL.getGameScene().getViewport().setZoom(1.55);
         updateLoadedTerrainWindow(true);
 
         initInventory();
@@ -591,6 +605,7 @@ public class GameApp extends GameApplication {
         player = null;
         activeTerrainBlocks.clear();
         terrainMap = null;
+        surfaceHeights = null;
         resetLoadedTerrainWindow();
 
         showMainMenu();
@@ -683,6 +698,24 @@ public class GameApp extends GameApplication {
         int minTileY = Math.max(0, worldToTile(visibleArea.getMinY()) - ACTIVE_TERRAIN_MARGIN_TILES);
         int maxTileY = Math.min(MAP_HEIGHT_TILES - 1, worldToTile(visibleArea.getMaxY()) + ACTIVE_TERRAIN_MARGIN_TILES);
 
+        // Always keep a small collider-safe area around the player loaded.
+        int playerTileX = worldToTile(player.getCenter().getX());
+        int playerTileY = worldToTile(player.getCenter().getY());
+        int safeMinTileX = Math.max(0, playerTileX - PLAYER_SAFE_LOAD_RADIUS_X);
+        int safeMaxTileX = Math.min(MAP_WIDTH_TILES - 1, playerTileX + PLAYER_SAFE_LOAD_RADIUS_X);
+        int safeMinTileY = Math.max(0, playerTileY - PLAYER_SAFE_LOAD_RADIUS_Y);
+        int safeMaxTileY = Math.min(MAP_HEIGHT_TILES - 1, playerTileY + PLAYER_SAFE_LOAD_RADIUS_Y);
+
+        minTileX = Math.min(minTileX, safeMinTileX);
+        maxTileX = Math.max(maxTileX, safeMaxTileX);
+        minTileY = Math.min(minTileY, safeMinTileY);
+        maxTileY = Math.max(maxTileY, safeMaxTileY);
+
+        final int finalMinTileX = minTileX;
+        final int finalMaxTileX = maxTileX;
+        final int finalMinTileY = minTileY;
+        final int finalMaxTileY = maxTileY;
+
         if (!force
                 && minTileX == loadedMinTileX && maxTileX == loadedMaxTileX
                 && minTileY == loadedMinTileY && maxTileY == loadedMaxTileY) {
@@ -694,7 +727,8 @@ public class GameApp extends GameApplication {
             int tileX = (int) (key >> 32);
             int tileY = (int) key;
 
-            boolean inside = tileX >= minTileX && tileX <= maxTileX && tileY >= minTileY && tileY <= maxTileY;
+            boolean inside = tileX >= finalMinTileX && tileX <= finalMaxTileX
+                    && tileY >= finalMinTileY && tileY <= finalMaxTileY;
             if (!inside) {
                 Entity block = entry.getValue();
                 if (block != null && block.isActive()) {
@@ -705,8 +739,8 @@ public class GameApp extends GameApplication {
             return false;
         });
 
-        for (int y = minTileY; y <= maxTileY; y++) {
-            for (int x = minTileX; x <= maxTileX; x++) {
+        for (int y = finalMinTileY; y <= finalMaxTileY; y++) {
+            for (int x = finalMinTileX; x <= finalMaxTileX; x++) {
                 Config.BlockType type = terrainMap[y][x];
                 if (type != null) {
                     spawnTerrainTile(x, y, type);
@@ -714,10 +748,10 @@ public class GameApp extends GameApplication {
             }
         }
 
-        loadedMinTileX = minTileX;
-        loadedMaxTileX = maxTileX;
-        loadedMinTileY = minTileY;
-        loadedMaxTileY = maxTileY;
+        loadedMinTileX = finalMinTileX;
+        loadedMaxTileX = finalMaxTileX;
+        loadedMinTileY = finalMinTileY;
+        loadedMaxTileY = finalMaxTileY;
     }
 
     private void displayHpBar() {
@@ -746,6 +780,7 @@ public class GameApp extends GameApplication {
     private String getItemNameFromBlockType(Config.BlockType blockType) {
         String name = blockType.toString();
 
+        if (name.contains("BED_ROCK")) return "Bedrock";
         if (name.contains("GRASS")) return "Grass";
         if (name.contains("DIRT")) return "Dirt";
         if (name.contains("STONE") || name.contains("SLATE") || name.contains("GENERIC")) return "Stone";
@@ -757,82 +792,246 @@ public class GameApp extends GameApplication {
         if (name.contains("LAPIS")) return "Lapis";
         if (name.contains("TREE") || name.contains("WOOD")) return "Wood";
         if (name.contains("LEAF")) return "Leaves";
-        if (name.contains("BED_ROCK")) return "Bedrock";
 
         return "Block";
+    }
+
+    private Config.BlockType resolveBlockTypeForItemName(String itemName) {
+        if (itemName == null) {
+            return null;
+        }
+
+        String normalized = itemName.trim().toLowerCase();
+
+        return switch (normalized) {
+            case "grass" -> Config.SURFACE_GRASS_BLOCK;
+            case "dirt" -> Config.DEFAULT_DIRT_BLOCK;
+            case "stone" -> Config.DEFAULT_STONE_BLOCK;
+            case "coal" -> Config.BlockType.COAL_BLOCK_1;
+            case "iron" -> Config.BlockType.IRON_BLOCK_1;
+            case "diamond" -> Config.BlockType.DIAMOND_BLOCK_1;
+            case "gold" -> Config.BlockType.GOLD_BLOCK;
+            case "emerald" -> Config.BlockType.EMERALD_BLOCK;
+            case "lapis" -> Config.BlockType.LAPIS_LAZULI_BLOCK;
+            case "wood" -> Config.DEFAULT_TREE_TRUNK_BLOCK;
+            case "leaves" -> Config.DEFAULT_LEAVES_BLOCK;
+            default -> null;
+        };
     }
 
     public void generateMap() {
         int mapWidth = MAP_WIDTH_TILES;
         int mapHeight = MAP_HEIGHT_TILES;
-        int surfaceHeight = SURFACE_HEIGHT_TILE; // Height where grass appears
 
         terrainMap = new Config.BlockType[mapHeight][mapWidth];
+        surfaceHeights = new int[mapWidth];
         activeTerrainBlocks.clear();
         resetLoadedTerrainWindow();
 
-        // Ground generation - layers of grass/dirt/stone
-        for (int x = 0; x < mapWidth; x++) {
-            for (int y = surfaceHeight; y < mapHeight; y++) {
-                Config.BlockType type;
-                int depthFromSurface = y - surfaceHeight;
+        if (terrainNoise == null) {
+            terrainNoise = new TerrainNoiseGenerator(worldSeed);
+        }
 
-                // Surface grass (top layer)
-                if (depthFromSurface == 0) {
-                    type = Config.BlockType.GRASS_TOP_LAYER_1;
-                }
-                // Upper dirt layer (1-2 blocks)
-                else if (depthFromSurface == 1 || depthFromSurface == 2) {
-                    type = Config.BlockType.DIRT_BLOCK;
-                }
-                // Upper stone with common ores (coal, iron)
-                else if (depthFromSurface >= 3 && depthFromSurface < 15) {
-                    int rand = FXGL.random(0, 100);
-                    if (rand < 8) {
-                        type = Config.BlockType.IRON_BLOCK_1;
-                    } else if (rand < 12) {
-                        type = Config.BlockType.COAL_BLOCK_1;
-                    } else {
-                        type = Config.BlockType.GENERIC_STONE_1;
-                    }
-                }
-                // Middle stone with rarer ores (diamond, gold)
-                else if (depthFromSurface >= 15 && depthFromSurface < 35) {
-                    int rand = FXGL.random(0, 100);
-                    if (rand < 3) {
-                        type = Config.BlockType.DIAMOND_BLOCK_1;
-                    } else if (rand < 6) {
-                        type = Config.BlockType.GOLD_BLOCK;
-                    } else if (rand < 10) {
-                        type = Config.BlockType.COAL_BLOCK_1;
-                    } else {
-                        type = Config.BlockType.GENERIC_STONE_1;
-                    }
-                }
-                // Deep stone with rare ores (emerald, lapis)
-                else if (depthFromSurface >= 35 && depthFromSurface < 58) {
-                    int rand = FXGL.random(0, 100);
-                    if (rand < 2) {
-                        type = Config.BlockType.EMERALD_BLOCK;
-                    } else if (rand < 4) {
-                        type = Config.BlockType.LAPIS_LAZULI_BLOCK;
-                    } else if (rand < 6) {
-                        type = Config.BlockType.DIAMOND_BLOCK_1;
-                    } else {
-                        type = Config.BlockType.GENERIC_STONE_1;
-                    }
-                }
-                // Bedrock at the bottom
-                else {
-                    type = Config.BlockType.DARK_BED_ROCK_1;
-                }
-
-                terrainMap[y][x] = type;
-            }
+        if (USE_NOISE_TERRAIN_GENERATION) {
+            generateNoiseTerrain(mapWidth, mapHeight);
+        } else {
+            generateLegacyTerrain(mapWidth, mapHeight, SURFACE_HEIGHT_TILE);
         }
 
         // Generate trees scattered across the surface (on top of the grass)
-        generateTrees(mapWidth, surfaceHeight);
+        generateTrees(mapWidth);
+    }
+
+    private void generateNoiseTerrain(int mapWidth, int mapHeight) {
+        int minSurfaceY = 10;
+        int maxSurfaceY = mapHeight - 14;
+        int amplitude = 6;
+
+        for (int x = 0; x < mapWidth; x++) {
+            int surfaceY = terrainNoise.surfaceY(x, SURFACE_HEIGHT_TILE, amplitude);
+            surfaceY = clampInt(surfaceY, minSurfaceY, maxSurfaceY);
+            surfaceHeights[x] = surfaceY;
+
+            for (int y = surfaceY; y < mapHeight; y++) {
+                int depth = y - surfaceY;
+                terrainMap[y][x] = selectLayeredBlock(x, y, depth, mapHeight);
+            }
+        }
+    }
+
+    private void generateLegacyTerrain(int mapWidth, int mapHeight, int surfaceHeight) {
+        for (int x = 0; x < mapWidth; x++) {
+            surfaceHeights[x] = surfaceHeight;
+
+            for (int y = surfaceHeight; y < mapHeight; y++) {
+                int depth = y - surfaceHeight;
+                terrainMap[y][x] = selectLayeredBlock(x, y, depth, mapHeight);
+            }
+        }
+    }
+
+    private Config.BlockType selectLayeredBlock(int x, int y, int depth, int mapHeight) {
+        if (y >= mapHeight - 2) {
+            return Config.BlockType.DARK_BED_ROCK_1;
+        }
+
+        if (depth == 0) {
+            return Config.SURFACE_GRASS_BLOCK;
+        }
+
+        if (depth <= 2) {
+            return Config.DEFAULT_DIRT_BLOCK;
+        }
+
+        double oreRoll = terrainNoise.coordinateRandom01(x, y, 17);
+        double strataBias = terrainNoise.fbm(x * 0.08 + y * 0.01, 2, 2.0, 0.5);
+
+        if (depth < 14) {
+            double ironChance = 0.05 + Math.max(0.0, strataBias) * 0.03;
+            double coalChance = 0.10 + Math.max(0.0, -strataBias) * 0.04;
+
+            if (oreRoll < ironChance) return Config.BlockType.IRON_BLOCK_1;
+            if (oreRoll < coalChance) return Config.BlockType.COAL_BLOCK_1;
+            return Config.DEFAULT_STONE_BLOCK;
+        }
+
+        if (depth < 30) {
+            if (oreRoll < 0.03) return Config.BlockType.DIAMOND_BLOCK_1;
+            if (oreRoll < 0.07) return Config.BlockType.GOLD_BLOCK;
+            if (oreRoll < 0.12) return Config.BlockType.COAL_BLOCK_1;
+            return Config.DEFAULT_STONE_BLOCK;
+        }
+
+        if (depth < 44) {
+            if (oreRoll < 0.02) return Config.BlockType.EMERALD_BLOCK;
+            if (oreRoll < 0.04) return Config.BlockType.LAPIS_LAZULI_BLOCK;
+            if (oreRoll < 0.06) return Config.BlockType.DIAMOND_BLOCK_1;
+            return Config.DEFAULT_STONE_BLOCK;
+        }
+
+        return Config.DEFAULT_STONE_BLOCK;
+    }
+
+    private int clampInt(int value, int min, int max) {
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
+    }
+
+    private int findSafeSpawnTileX(int preferredX) {
+        int clampedPreferred = clampInt(preferredX, 0, MAP_WIDTH_TILES - 1);
+
+        if (isSpawnColumnClear(clampedPreferred)) {
+            return clampedPreferred;
+        }
+
+        int maxRadius = Math.max(clampedPreferred, MAP_WIDTH_TILES - 1 - clampedPreferred);
+        for (int radius = 1; radius <= maxRadius; radius++) {
+            int left = clampedPreferred - radius;
+            if (left >= 0 && isSpawnColumnClear(left)) {
+                return left;
+            }
+
+            int right = clampedPreferred + radius;
+            if (right < MAP_WIDTH_TILES && isSpawnColumnClear(right)) {
+                return right;
+            }
+        }
+
+        return clampedPreferred;
+    }
+
+    private boolean isSpawnColumnClear(int tileX) {
+        if (surfaceHeights == null || tileX < 0 || tileX >= surfaceHeights.length) {
+            return false;
+        }
+
+        int surfaceY = surfaceHeights[tileX];
+        int feetY = surfaceY - 1;
+        int bodyY = surfaceY - 2;
+        int headY = surfaceY - 3;
+
+        if (!isInMapBounds(tileX, feetY) || !isInMapBounds(tileX, bodyY) || !isInMapBounds(tileX, headY)) {
+            return false;
+        }
+
+        Config.BlockType surfaceBlock = getTerrainTile(tileX, surfaceY);
+        boolean hasValidSurface = surfaceBlock != null;
+        if (!hasValidSurface) {
+            return false;
+        }
+
+        // Avoid spawn columns occupied by tree trunk/leaves around player capsule.
+        for (int x = tileX - 1; x <= tileX + 1; x++) {
+            for (int y = headY; y <= feetY; y++) {
+                if (!isInMapBounds(x, y)) {
+                    continue;
+                }
+                Config.BlockType t = getTerrainTile(x, y);
+                if (t != null) {
+                    String n = t.name();
+                    if (n.contains("TREE") || n.contains("LEAF")) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return getTerrainTile(tileX, feetY) == null
+                && getTerrainTile(tileX, bodyY) == null
+                && getTerrainTile(tileX, headY) == null;
+    }
+
+    private void clearSpawnArea(int centerTileX, int surfaceY) {
+        // Ensure spawn tile and immediate side tiles are free for player capsule and movement start.
+        for (int x = centerTileX - 1; x <= centerTileX + 1; x++) {
+            for (int y = surfaceY - 3; y <= surfaceY - 1; y++) {
+                if (!isInMapBounds(x, y)) {
+                    continue;
+                }
+                setTerrainTile(x, y, null);
+                despawnTerrainTile(x, y);
+            }
+        }
+    }
+
+    private void ensureSpawnPlatform(int centerTileX, int surfaceY) {
+        for (int x = centerTileX - 1; x <= centerTileX + 1; x++) {
+            if (!isInMapBounds(x, surfaceY)) {
+                continue;
+            }
+
+            if (getTerrainTile(x, surfaceY) == null) {
+                setTerrainTile(x, surfaceY, Config.SURFACE_GRASS_BLOCK);
+            }
+            if (isInMapBounds(x, surfaceY + 1) && getTerrainTile(x, surfaceY + 1) == null) {
+                setTerrainTile(x, surfaceY + 1, Config.DEFAULT_DIRT_BLOCK);
+            }
+        }
+    }
+
+    private void preloadTerrainWindowAround(int centerTileX, int centerTileY) {
+        int halfWindowX = VIEW_WIDTH_TILES / 2 + ACTIVE_TERRAIN_MARGIN_TILES;
+        int halfWindowY = VIEW_HEIGHT_TILES / 2 + ACTIVE_TERRAIN_MARGIN_TILES;
+
+        int minTileX = Math.max(0, centerTileX - halfWindowX);
+        int maxTileX = Math.min(MAP_WIDTH_TILES - 1, centerTileX + halfWindowX);
+        int minTileY = Math.max(0, centerTileY - halfWindowY);
+        int maxTileY = Math.min(MAP_HEIGHT_TILES - 1, centerTileY + halfWindowY);
+
+        for (int y = minTileY; y <= maxTileY; y++) {
+            for (int x = minTileX; x <= maxTileX; x++) {
+                Config.BlockType type = terrainMap[y][x];
+                if (type != null) {
+                    spawnTerrainTile(x, y, type);
+                }
+            }
+        }
+
+        loadedMinTileX = minTileX;
+        loadedMaxTileX = maxTileX;
+        loadedMinTileY = minTileY;
+        loadedMaxTileY = maxTileY;
     }
 
     public int getActiveTerrainBlockCount() {
@@ -855,27 +1054,73 @@ public class GameApp extends GameApplication {
         return total;
     }
 
-    private void generateTrees(int mapWidth, int surfaceHeight) {
-        // Trees spawn at roughly 12% density - only on the surface grass
-        for (int x = 0; x < mapWidth; x += 8) {
-            int randomOffset = FXGL.random(0, 7);
+    private void generateTrees(int mapWidth) {
+        // Trees spawn at moderate density with variable trunk height and fuller canopies.
+        for (int x = 0; x < mapWidth; x += 9) {
+            int randomOffset = (int) (terrainNoise.coordinateRandom01(x, 0, 91) * 9);
             int treeX = x + randomOffset;
+            if (treeX >= mapWidth) continue;
 
-            if (treeX < mapWidth && FXGL.random(0, 100) < 60) {
-                // Tree position - trunk sits on top of the grass block
-                int trunkY = surfaceHeight - 2;
-                int topY = trunkY - 1;
-
-                setTerrainTile(treeX, trunkY, Config.BlockType.OAK_TREE_BOTTOM);
-                setTerrainTile(treeX, topY, Config.BlockType.OAK_TREE_TOP);
-
-                // Leaves around the top
-                setTerrainTile(treeX - 1, topY, Config.BlockType.LEAF_VARIANT_1);
-                setTerrainTile(treeX + 1, topY, Config.BlockType.LEAF_VARIANT_1);
-                setTerrainTile(treeX - 1, topY - 1, Config.BlockType.LEAF_VARIANT_1);
-                setTerrainTile(treeX + 1, topY - 1, Config.BlockType.LEAF_VARIANT_1);
+            if (terrainNoise.coordinateRandom01(treeX, 1, 92) < 0.52) {
+                placeTreeAt(treeX);
             }
         }
+    }
+
+    private void placeTreeAt(int treeX) {
+        int surfaceY = surfaceHeights[treeX];
+        int trunkHeight = 4 + (int) (terrainNoise.coordinateRandom01(treeX, surfaceY, 93) * 3.0); // 4..6
+
+        int trunkTopY = surfaceY - trunkHeight;
+        if (!isInMapBounds(treeX, trunkTopY - 2) || !isInMapBounds(treeX, surfaceY - 1)) {
+            return;
+        }
+
+        for (int y = surfaceY - 1; y >= trunkTopY; y--) {
+            if (getTerrainTile(treeX, y) != null) {
+                return;
+            }
+        }
+
+        for (int y = surfaceY - 1; y >= trunkTopY; y--) {
+            Config.BlockType trunkType = (y == trunkTopY) ? Config.BlockType.OAK_TREE_TOP : Config.DEFAULT_TREE_TRUNK_BLOCK;
+            setTerrainTile(treeX, y, trunkType);
+        }
+
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -2; dy <= 1; dy++) {
+                int leafX = treeX + dx;
+                int leafY = trunkTopY + dy;
+
+                if (!isInMapBounds(leafX, leafY)) {
+                    continue;
+                }
+                if (getTerrainTile(leafX, leafY) != null) {
+                    continue;
+                }
+
+                double shapeRoll = terrainNoise.coordinateRandom01(leafX, leafY, 94);
+                int manhattanDistance = Math.abs(dx) + Math.abs(dy);
+
+                boolean shouldPlaceLeaf =
+                        manhattanDistance <= 2
+                        || (manhattanDistance == 3 && shapeRoll > 0.25)
+                        || (dy == -2 && Math.abs(dx) <= 1 && shapeRoll > 0.1);
+
+                if (shouldPlaceLeaf) {
+                    setTerrainTile(leafX, leafY, Config.DEFAULT_LEAVES_BLOCK);
+                }
+            }
+        }
+    }
+
+    public long getWorldSeed() {
+        return worldSeed;
+    }
+
+    public void setWorldSeed(long worldSeed) {
+        this.worldSeed = worldSeed;
+        this.terrainNoise = new TerrainNoiseGenerator(worldSeed);
     }
 
     public static void main(String[] args) {
