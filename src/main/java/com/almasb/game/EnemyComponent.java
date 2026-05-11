@@ -13,7 +13,7 @@ public class EnemyComponent extends Component {
     private double moveSpeed;
     private double damage;
 
-    private double stuckTimer = 0;
+    private double stuckTimer = 0, stunTimer = 0;
 
     public EnemyComponent(int maxHealth, double moveSpeed, double damage) {
         this.maxHealth = maxHealth;
@@ -22,15 +22,29 @@ public class EnemyComponent extends Component {
         this.damage = damage;
     }
 
-    public void takeDamage(double amount) {
+    public void takeDamage(double amount, double knockback) {
         currentHealth -= amount;
+
+        System.out.println("Enemy took a damage of " + amount + " Current health: " + currentHealth); // For debug
         if (currentHealth <= 0) {
             entity.removeFromWorld();
         }
+        else {
+            knockback(knockback);
+        }
+    }
+
+    public void knockback(double directionX) {
+        stunTimer = 0.2;
+
+        physics.setVelocityX(directionX);
+        physics.setVelocityY(-80);
     }
 
     @Override
     public void onUpdate(double tpf) {
+        if (stunTimer > 0) stunTimer -= tpf;
+
         // Check if there is a player in the world (used singletonOptional as safety in case player is dead)
         var playerOptional = FXGL.getGameWorld().getSingletonOptional(EntityType.PLAYER);
 
@@ -44,6 +58,8 @@ public class EnemyComponent extends Component {
                 physics.setVelocityY(0);
                 return;
             }
+
+            if (stunTimer > 0) return;
 
             boolean isGrounded = Math.abs(physics.getVelocityY()) < 0.1;
             boolean isStuck = Math.abs(physics.getVelocityX()) < 0.1;

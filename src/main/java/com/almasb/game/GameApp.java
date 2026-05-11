@@ -126,6 +126,33 @@ public class GameApp extends GameApplication {
             }
         }, KeyCode.SPACE);
 
+        input.addAction(new UserAction("Attack") {
+            private TimerAction timer;
+            private double lastAttackTime = 0;
+
+            @Override
+            protected void onActionBegin() {
+                if (player == null) return;
+
+                //Make sure player cant attack every frame
+                double currentTime = FXGL.getGameTimer().getNow();
+                double attackCooldown = 0.4;
+
+                if (currentTime - lastAttackTime >= attackCooldown) {
+                    lastAttackTime = currentTime;
+
+                    PlayerComponent pc = player.getComponent(PlayerComponent.class);
+                    InventoryItem heldItem = null;
+
+                    if (!selectionState.isEmpty() && selectionState.getSlotType().equals("hotbar")) {
+                        heldItem = pc.getHotbar().get(selectionState.getIndex());
+                    }
+
+                    pc.attack(heldItem);
+                }
+            }
+        }, KeyCode.F);
+
         input.addAction(new UserAction("Mine") {
             private TimerAction timer;
 

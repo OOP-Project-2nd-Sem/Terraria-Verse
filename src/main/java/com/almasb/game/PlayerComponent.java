@@ -1,13 +1,17 @@
 package com.almasb.game;
 
 import com.almasb.fxgl.dsl.FXGL;
+import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.component.Component;
 import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.texture.AnimatedTexture;
 import com.almasb.fxgl.texture.AnimationChannel;
+import com.almasb.fxgl.texture.Texture;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.control.Button;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -209,6 +213,60 @@ public class PlayerComponent extends Component {
         }
     }
 
+    public void attack(InventoryItem heldItem) {
+        if (isDead || stunTimer > 0) return;
+
+        double damage = getDamageForItem(heldItem);
+        double playerScaleX = entity.getViewComponent().getParent().getScaleX();
+        boolean facingRight = playerScaleX > 0;
+        double attackRange = 35;
+
+        //Calculate the X cordinate to spawn the attack hitbox
+        double hitX = facingRight ? entity.getRightX() : entity.getX() - attackRange;
+        Rectangle2D hitBox = new Rectangle2D(hitX, entity.getY(), attackRange, entity.getHeight());
+
+        //If the attacks hitbox intersects with an enemy
+        for (Entity e : FXGL.getGameWorld().getEntitiesInRange(hitBox)) {
+            if (e.isType(EntityType.ENEMY)) {
+                double knockback = (playerScaleX > 0) ? 150 : -150;
+                e.getComponent(EnemyComponent.class).takeDamage(damage, knockback);
+            }
+        }
+
+        //Code for rotating the item held for attack
+        if (heldItem != null && heldItem.getIcon() != null) {
+
+
+            Texture weaponTexture = heldItem.getIcon().copy();
+
+
+            // Spawn a temporary visual entity at the player's hand location
+            double spawnX = facingRight ? entity.getRightX() - 4 : entity.getX() - 4;
+            Entity weaponEntity = FXGL.entityBuilder()
+                    .at(spawnX, entity.getY())
+                    .view(weaponTexture)
+                    .zIndex(100) // Make sure it renders in front of the player
+                    .buildAndAttach();
+
+            // Set the "Pivot Point" to the bottom of the item so it swings from the handle
+            // Assuming a 16x16 icon: Bottom-Left (0, 16) for Right swing, Bottom-Right (16, 16) for Left swing
+            weaponEntity.getTransformComponent().setRotationOrigin(new Point2D(facingRight ? 0 : 16, 16));
+
+            // Create the smooth rotation animation using FXGL's AnimationBuilder
+            FXGL.animationBuilder()
+                    .duration(Duration.seconds(0.15))
+                    .rotate(weaponEntity)
+                    .from(facingRight ? -45 : 45)                 // Start slightly behind the head
+                    .to(facingRight ? 135 : -135)                 // Swing downwards
+                    .buildAndPlay();
+
+            //Delete the weapon entity the exact moment the swing finishes
+            FXGL.getGameTimer().runOnceAfter(() -> {
+                weaponEntity.removeFromWorld();
+            }, Duration.seconds(0.15));
+        }
+    }
+
     public void takeDamage(double damage, double knockbackDirX) {takeDamage(damage, knockbackDirX, -80);}
     public void takeDamage(double damage, double knockbackDirX, double knockbackDirY) {
         // Prevent the player for taking damage every frame of the hit
@@ -291,6 +349,25 @@ public class PlayerComponent extends Component {
     public double getCurrentHealth() {return currentHealth;}
     public DoubleProperty getHpProperty() {return hpProperty;}
     public boolean isDead() {return isDead;}
+    public double getDamageForItem(InventoryItem heldItem) {
+        if (heldItem == null) return 2.0; // Default fist damage
+
+        String name = heldItem.getName().toLowerCase();
+
+        if (name.contains("sword") || name.contains("axe")) {
+            if (name.contains("wood")) return 10.0;
+            if (name.contains("stone")) return 15.0;
+            if (name.contains("iron")) return 20.0;
+            if (name.contains("diamond")) return 30.0;
+            return 15.0;
+        } else if (name.contains("pickaxe")) {
+            if (name.contains("wood")) return 4.0;
+            if (name.contains("iron")) return 8.0;
+            if (name.contains("diamond")) return 12.0;
+            return 5.0;
+        }
+        return 2.0;
+    }
 
     private void displayDeathScreen() {
         StackPane overlay = new StackPane();
