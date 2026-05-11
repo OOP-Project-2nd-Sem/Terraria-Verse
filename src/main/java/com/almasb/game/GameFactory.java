@@ -70,7 +70,7 @@ public class GameFactory implements EntityFactory {
         physics.setBodyType(BodyType.DYNAMIC);
         physics.setFixtureDef(new FixtureDef().friction(0f)); //Make the friction 0 to reduce the chances of some bugs and inconsistencies
 
-        return entityBuilder()
+        return entityBuilder(data)
                 .type(EntityType.ENEMY)
                 .viewWithBBox(new Rectangle(10, 10, Color.GREEN))
                 .with(physics)

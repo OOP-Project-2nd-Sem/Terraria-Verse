@@ -7,9 +7,7 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.SpawnData;
 import com.almasb.fxgl.input.Input;
 import com.almasb.fxgl.input.UserAction;
-import com.almasb.fxgl.texture.Texture;
 import com.almasb.fxgl.time.TimerAction;
-import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
@@ -18,9 +16,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -713,7 +709,7 @@ public class GameApp extends GameApplication {
         craftingMenu.init();
 
         //Test enemy
-        spawn("enemy", new SpawnData(player.getX() + 100, player.getY() - 50).put("type", EnemyType.SLIME));
+        spawn("enemy", new SpawnData(player.getX() + 100, player.getY() - 35).put("type", EnemyType.SLIME));
 
         background.removeFromWorld();
         spawn("background");

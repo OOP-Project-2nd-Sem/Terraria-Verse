@@ -1,6 +1,5 @@
 package com.almasb.game;
 
-import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.texture.Texture;
 
 public class InventoryItem {
