@@ -640,7 +640,7 @@ public class GameApp extends GameApplication {
                 return;
             }
             SoundManager.playMenuClickSound();
-            long worldSeed = seed.hashCode();
+            worldSeed = seedToLong(seed);
             showLoadingThenStart(characterName);
         });
 
@@ -1344,5 +1344,23 @@ public class GameApp extends GameApplication {
 
     public static void main(String[] args) {
         launch(args);
+    }
+
+    /**
+     * Converts an arbitrary seed string to a stable 64-bit long.
+     * Pure numeric strings are parsed directly so "12345" always maps to 12345L.
+     * Everything else goes through FNV-1a (64-bit) for good distribution.
+     */
+    private static long seedToLong(String s) {
+        // Let players type raw numeric seeds and get exact values back.
+        try { return Long.parseLong(s); } catch (NumberFormatException ignored) {}
+
+        // FNV-1a 64-bit hash — far better distribution than String.hashCode()
+        long hash = 0xcbf29ce484222325L;
+        for (int i = 0; i < s.length(); i++) {
+            hash ^= s.charAt(i);
+            hash *= 0x100000001b3L;
+        }
+        return hash;
     }
 }
