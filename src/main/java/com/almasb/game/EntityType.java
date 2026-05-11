@@ -4,5 +4,6 @@ public enum EntityType {
     PLAYER,
     BLOCK,
     ITEM,
-    ENEMY
+    ENEMY,
+    WATER
 }

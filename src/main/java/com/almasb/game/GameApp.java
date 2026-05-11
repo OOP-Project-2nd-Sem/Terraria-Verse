@@ -35,11 +35,14 @@ public class GameApp extends GameApplication {
     private Entity player, background;
     private VBox currentMenu;
     private final Map<Long, Entity> activeTerrainBlocks = new HashMap<>();
+    private final Map<Long, Entity> activeWaterBlocks = new HashMap<>();
     private final Map<Integer, Config.BlockType[]> terrainColumns = new HashMap<>();
+    private final Map<Integer, Config.BlockType[]> waterColumns = new HashMap<>();
     private final Map<Integer, Integer> surfaceHeights = new HashMap<>();
     private final Set<Integer> generatedColumns = new HashSet<>();
     private final Set<Integer> generatedTreeColumns = new HashSet<>();
     private final Set<Integer> generatedTunnelRegions = new HashSet<>();
+    private final Set<Integer> generatedWaterRegions = new HashSet<>();
 
     private static final int MAP_HEIGHT_TILES = 80;
     private static final int VIEW_WIDTH_TILES = 64;
@@ -50,6 +53,7 @@ public class GameApp extends GameApplication {
     private static final int PLAYER_SAFE_LOAD_RADIUS_X = 10;
     private static final int PLAYER_SAFE_LOAD_RADIUS_Y = 8;
     private static final int TUNNEL_REGION_WIDTH = 32;
+    private static final int WATER_LEVEL = 45;  // Sea level for water bodies
 
     private int loadedMinTileX = Integer.MAX_VALUE;
     private int loadedMaxTileX = Integer.MIN_VALUE;
@@ -59,6 +63,10 @@ public class GameApp extends GameApplication {
     private long worldSeed=1337L;
     private TerrainNoiseGenerator terrainNoise;
 
+    // Water-related tracking
+    private double waterSoundCooldown = 0;
+    private static final double WATER_SOUND_INTERVAL = 0.3;
+
     // UI roots
     // ADD:
     Runnable refreshAll = this::refreshAll;
@@ -67,6 +75,11 @@ public class GameApp extends GameApplication {
     private final HotbarUI    hotbarUI    = new HotbarUI(selectionState, refreshAll);
     private final ArmorUI     armorUI     = new ArmorUI(selectionState, refreshAll);
     private CraftingMenu craftingMenu;
+
+    private boolean waterDistanceVisible = true;
+    private ProgressBar hpBar;
+    private Label hpLabel;
+    private Label waterDistanceLabel;
 
     // Current character
     private String currentCharacterName = "";
@@ -333,7 +346,23 @@ public class GameApp extends GameApplication {
                 }
             }
         }, KeyCode.F5);
-        }
+
+        // Toggle Performance Console — TAB
+        input.addAction(new UserAction("Toggle Performance Console") {
+            @Override
+            protected void onActionBegin() {
+                FXGL.getService(MiniProfilerService.class).toggleConsole();
+            }
+        }, KeyCode.TAB);
+
+        // Toggle Water Distance Label — T
+        input.addAction(new UserAction("Toggle Water Distance") {
+            @Override
+            protected void onActionBegin() {
+                toggleWaterDistanceLabel();
+            }
+        }, KeyCode.T);
+    }
 
 
     // ─── UI ────────────────────────────────────────────────────────────────────
@@ -347,6 +376,11 @@ public class GameApp extends GameApplication {
     @Override
     protected void onUpdate(double tpf) {
         updateLoadedTerrainWindowIfCameraMoved();
+        updatePlayerWaterState(tpf);
+        if (waterDistanceVisible && waterDistanceLabel != null) {
+            int dist = getDistanceToNearestWater();
+            waterDistanceLabel.setText("Water: " + dist + " blocks");
+        }
     }
 
     // ─── Physics ───────────────────────────────────────────────────────────────
@@ -713,16 +747,17 @@ public class GameApp extends GameApplication {
 
 
     private void startGame(String characterName) {
-        currentCharacterName = characterName;
-        terrainNoise = new TerrainNoiseGenerator(worldSeed);
-        activeTerrainBlocks.clear();
-        resetLoadedTerrainWindow();
-        FXGL.getGameScene().clearUINodes();
-        FXGL.getGameScene().getViewport().setBounds(-1_000_000, 0, 1_000_000, MAP_HEIGHT_TILES * Config.TILE_SIZE);
-        // load world + player
-        generateMap();
-        // Player spawns on surface near the world origin.
-        int spawnTileX = findSafeSpawnTileX(0);
+         currentCharacterName = characterName;
+         terrainNoise = new TerrainNoiseGenerator(worldSeed);
+         activeTerrainBlocks.clear();
+         activeWaterBlocks.clear();
+         resetLoadedTerrainWindow();
+         FXGL.getGameScene().clearUINodes();
+         FXGL.getGameScene().getViewport().setBounds(-1_000_000, 0, 1_000_000, MAP_HEIGHT_TILES * Config.TILE_SIZE);
+         // load world + player
+         generateMap();
+         // Player spawns on surface away from left boundary (start search from tile 60)
+         int spawnTileX = findSafeSpawnTileX(60);
         int spawnSurfaceY = surfaceHeights.getOrDefault(spawnTileX, SURFACE_HEIGHT_TILE);
         if (isInMapBounds(spawnTileX, spawnSurfaceY) && getTerrainTile(spawnTileX, spawnSurfaceY) == null) {
             setTerrainTile(spawnTileX, spawnSurfaceY, Config.SURFACE_GRASS_BLOCK);
@@ -752,21 +787,21 @@ public class GameApp extends GameApplication {
         spawn("background");
 
         CharacterData data = SaveManager.loadCharacter(characterName);
-        if (data != null) {
-            player.getComponent(PlayerComponent.class).loadFromSave(data);
-        }
+         if (data != null) {
+             player.getComponent(PlayerComponent.class).loadFromSave(data);
+         }
 
-        FXGL.getGameScene().getViewport().bindToEntity(
-                player,
-                (int)(FXGL.getAppWidth() / 2.0),
-                (int)(FXGL.getAppHeight() / 2.0)
-        );
-        FXGL.getGameScene().getViewport().setZoom(1.55);
-        updateLoadedTerrainWindow(true);
+         FXGL.getGameScene().getViewport().bindToEntity(
+                 player,
+                 (int)(FXGL.getAppWidth() / 2.0),
+                 (int)(FXGL.getAppHeight() / 2.0)
+         );
+         FXGL.getGameScene().getViewport().setZoom(1.55);
+         updateLoadedTerrainWindow(true);
 
-        SoundManager.playGameMusic();
+         SoundManager.playGameMusic();
 
-        displayHpBar();
+         displayHpBar();
     }
 
     public void resetToMainMenu() {
@@ -776,11 +811,14 @@ public class GameApp extends GameApplication {
 
         player = null;
         activeTerrainBlocks.clear();
+        activeWaterBlocks.clear();
         terrainColumns.clear();
+        waterColumns.clear();
         surfaceHeights.clear();
         generatedColumns.clear();
         generatedTreeColumns.clear();
         generatedTunnelRegions.clear();
+        generatedWaterRegions.clear();
         resetLoadedTerrainWindow();
 
         SoundManager.playMenuMusic();
@@ -935,8 +973,31 @@ public class GameApp extends GameApplication {
                 if (type != null) {
                     spawnTerrainTile(x, y, type);
                 }
+                // Also spawn water blocks
+                Config.BlockType waterType = getWaterTile(x, y);
+                if (waterType != null) {
+                    spawnWaterTile(x, y, waterType);
+                }
             }
         }
+
+        // Also handle water block despawning
+        activeWaterBlocks.entrySet().removeIf(entry -> {
+            long key = entry.getKey();
+            int tileX = (int) (key >> 32);
+            int tileY = (int) key;
+
+            boolean inside = tileX >= finalMinTileX && tileX <= finalMaxTileX
+                    && tileY >= finalMinTileY && tileY <= finalMaxTileY;
+            if (!inside) {
+                Entity water = entry.getValue();
+                if (water != null && water.isActive()) {
+                    water.removeFromWorld();
+                }
+                return true;
+            }
+            return false;
+        });
 
         loadedMinTileX = finalMinTileX;
         loadedMaxTileX = finalMaxTileX;
@@ -945,7 +1006,7 @@ public class GameApp extends GameApplication {
     }
 
     private void displayHpBar() {
-        ProgressBar hpBar = new ProgressBar(1.0);
+        hpBar = new ProgressBar(1.0);
 
         hpBar.setStyle("-fx-accent: red; -fx-control-inner-background: #333333;");
         hpBar.setPrefWidth(200);
@@ -957,13 +1018,58 @@ public class GameApp extends GameApplication {
         PlayerComponent pc = player.getComponent(PlayerComponent.class);
         hpBar.progressProperty().bind(pc.getHpProperty().divide((double) pc.getMaxHealth()));
 
-        Label hpLabel = new Label("HP");
+        hpLabel = new Label("HP");
         hpLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14;");
         hpLabel.setTranslateX(25);
         hpLabel.setTranslateY(20);
 
+        waterDistanceLabel = new Label("Water: calculating...");
+        waterDistanceLabel.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14;");
+        waterDistanceLabel.setTranslateX(20);
+        waterDistanceLabel.setTranslateY(45);
+
         FXGL.getGameScene().addUINode(hpBar);
         FXGL.getGameScene().addUINode(hpLabel);
+        if (waterDistanceVisible) {
+            FXGL.getGameScene().addUINode(waterDistanceLabel);
+        }
+    }
+
+    private void toggleWaterDistanceLabel() {
+        waterDistanceVisible = !waterDistanceVisible;
+        if (waterDistanceLabel == null) {
+            return;
+        }
+
+        if (waterDistanceVisible) {
+            FXGL.getGameScene().addUINode(waterDistanceLabel);
+        } else {
+            FXGL.getGameScene().removeUINode(waterDistanceLabel);
+        }
+    }
+
+    private int getDistanceToNearestWater() {
+        if (player == null) return -1;
+
+        int playerTileX = worldToTile(player.getCenter().getX());
+        int playerTileY = worldToTile(player.getCenter().getY());
+
+        int minDist = Integer.MAX_VALUE;
+
+        for (Map.Entry<Integer, Config.BlockType[]> entry : waterColumns.entrySet()) {
+            int x = entry.getKey();
+            Config.BlockType[] column = entry.getValue();
+            if (column == null) continue;
+
+            for (int y = 0; y < column.length; y++) {
+                if (column[y] != null) {
+                    int dist = Math.abs(x - playerTileX) + Math.abs(y - playerTileY);
+                    if (dist < minDist) minDist = dist;
+                }
+            }
+        }
+
+        return minDist == Integer.MAX_VALUE ? -1 : minDist;
     }
 
     private double calculateDynamicMineTime(double baseMineTime, Config.BlockType blockType, InventoryItem heldItem) {
@@ -1408,6 +1514,108 @@ public class GameApp extends GameApplication {
                     setTerrainTile(leafX, leafY, Config.DEFAULT_LEAVES_BLOCK);
                 }
             }
+        }
+    }
+
+    // ─── Water System ────────────────────────────────────────────────────────────
+
+    private void updatePlayerWaterState(double tpf) {
+        if (player == null) return;
+
+        // Check if player is touching water blocks and play sound
+        Rectangle2D playerBounds = new Rectangle2D(player.getX(), player.getY(), player.getWidth(), player.getHeight());
+        int playerTileX = worldToTile(player.getCenter().getX());
+        int playerTileY = worldToTile(player.getCenter().getY());
+
+        boolean inWater = false;
+        for (int x = playerTileX - 1; x <= playerTileX + 1; x++) {
+            for (int y = playerTileY - 1; y <= playerTileY + 1; y++) {
+               if (getWaterTile(x, y) != null) {
+                   inWater = true;
+                   break;
+               }
+            }
+            if (inWater) break;
+        }
+
+        waterSoundCooldown -= tpf;
+        if (inWater && waterSoundCooldown <= 0 && Math.abs(player.getComponent(PlayerComponent.class).getPhysics().getVelocityX()) > 20) {
+            SoundManager.playWaterMoveSound();
+            waterSoundCooldown = WATER_SOUND_INTERVAL;
+        } else if (!inWater) {
+            waterSoundCooldown = 0;
+        }
+    }
+
+    private Config.BlockType getWaterTile(int tileX, int tileY) {
+        if (!isInMapBounds(tileX, tileY)) {
+            return null;
+        }
+        ensureWaterColumnGenerated(tileX);
+        Config.BlockType[] column = waterColumns.get(tileX);
+        return column == null ? null : column[tileY];
+    }
+
+    private void setWaterTile(int tileX, int tileY, Config.BlockType type) {
+        if (!isInMapBounds(tileX, tileY)) {
+            return;
+        }
+        ensureWaterColumnGenerated(tileX);
+        Config.BlockType[] column = waterColumns.get(tileX);
+        if (column != null) {
+            column[tileY] = type;
+        }
+    }
+
+    private void ensureWaterColumnGenerated(int tileX) {
+        if (waterColumns.containsKey(tileX)) {
+            return;
+        }
+        Config.BlockType[] column = new Config.BlockType[MAP_HEIGHT_TILES];
+        waterColumns.put(tileX, column);
+        generateWaterAtColumn(tileX, column);
+    }
+
+    private void generateWaterAtColumn(int x, Config.BlockType[] waterColumn) {
+        // Sea level water: fill from surface down to waterLevel if surface is below waterLevel
+        int surfaceY = surfaceHeights.getOrDefault(x, SURFACE_HEIGHT_TILE);
+
+        if (surfaceY < WATER_LEVEL) {
+            // Fill from water level down to surface with water
+            for (int y = WATER_LEVEL; y > surfaceY; y--) {
+                if (getTerrainTile(x, y) == null) {
+                    Config.BlockType waterType = selectWaterTexture(x, y, surfaceY);
+                    waterColumn[y] = waterType;
+                }
+            }
+        }
+    }
+
+    private Config.BlockType selectWaterTexture(int x, int y, int surfaceY) {
+        int depthBelowSurface = surfaceY - y;
+        // Use deeper water texture for deeper water
+        if (depthBelowSurface > 8) {
+            return Config.BlockType.SEA_GREEN_WATER_TEXTURE;
+        } else {
+            return Config.BlockType.WATER_TEXTURE_3;
+        }
+    }
+
+    private void spawnWaterTile(int tileX, int tileY, Config.BlockType type) {
+        long key = tileKey(tileX, tileY);
+        Entity existing = activeWaterBlocks.get(key);
+        if (existing != null && existing.isActive()) {
+            return;
+        }
+
+        Entity water = spawn("water", new SpawnData(tileX * Config.TILE_SIZE, tileY * Config.TILE_SIZE).put("type", type));
+        activeWaterBlocks.put(key, water);
+    }
+
+    private void despawnWaterTile(int tileX, int tileY) {
+        Entity water = activeWaterBlocks.remove(tileKey(tileX, tileY));
+        if (water != null && water.isActive()) {
+            water.removeFromWorld();
         }
     }
 

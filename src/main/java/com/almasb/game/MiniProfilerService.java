@@ -19,6 +19,7 @@ public final class MiniProfilerService extends EngineService {
     private double sampleTime;
     private int sampleFrames;
     private double sampleCpuMs;
+    private boolean consoleVisible = true;
 
     @Override
     public void onInit() {
@@ -39,8 +40,16 @@ public final class MiniProfilerService extends EngineService {
         root.setTranslateY(6);
         root.setStyle("-fx-background-color: rgba(0,0,0,0.45); -fx-padding: 4;");
         root.getChildren().addAll(fpsText, cpuText, ramText, blocksText);
+        root.setVisible(consoleVisible);
+        root.setManaged(consoleVisible);
 
         FXGL.getSceneService().getOverlayRoot().getChildren().add(root);
+    }
+
+    public void toggleConsole() {
+        consoleVisible = !consoleVisible;
+        root.setVisible(consoleVisible);
+        root.setManaged(consoleVisible);
     }
 
     @Override

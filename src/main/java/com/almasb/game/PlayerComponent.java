@@ -79,6 +79,7 @@ public class PlayerComponent extends Component {
     public int getSelectedHotbarSlot() { return selectedHotbarSlot; }
     public void setSelectedHotbarSlot(int slot) { selectedHotbarSlot = slot; }
     public InventoryItem getSelectedItem() { return hotbar.get(selectedHotbarSlot); }
+    public PhysicsComponent getPhysics() { return physics; }
 
     // ─── Add Item ──────────────────────────────────────────────────────────────
 

@@ -58,6 +58,7 @@ public class SoundManager {
         SOUND_FILES.put("menu_click",         "menu_click.wav");
         SOUND_FILES.put("stone_hit",          "stone_hit.mp3");
         SOUND_FILES.put("walking_running",    "walking_running.wav");
+        SOUND_FILES.put("water_move",         "water_move.wav");
         SOUND_FILES.put("wood_hits",          "wood_hits.wav");
 
         // Music (under assets/music/ on the classpath – path used by FXGL.loopBGM)
@@ -239,6 +240,11 @@ public class SoundManager {
     /** Fired when the player successfully crafts an item. */
     public static void playCraftingSuccessSound() {
         playHitsound("crafting_success", true);
+    }
+
+    /** Player moves through water. */
+    public static void playWaterMoveSound() {
+        playHitsound("water_move", false);
     }
 
     // ── Internal helpers ──────────────────────────────────────────────────────
