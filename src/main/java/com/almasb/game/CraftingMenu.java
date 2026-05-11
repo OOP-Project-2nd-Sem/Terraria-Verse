@@ -468,6 +468,9 @@ public class CraftingMenu {
                 selectedRecipe.getResultName(), selectedRecipe.getResultCount(), selectedRecipe.getResultCategory());
         if (result != null) addToInventory(pc, result);
 
+        // Play crafting success sound
+        SoundManager.playCraftingSuccessSound();
+
         onCraft.run();
 
         if (selectedRecipe != null) {

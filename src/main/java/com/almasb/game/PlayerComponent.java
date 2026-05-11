@@ -63,6 +63,10 @@ public class PlayerComponent extends Component {
     // Armor slots - 4 slots (0=helmet, 1=chestplate, 2=leggings, 3=boots)
     private List<InventoryItem> armor = new ArrayList<>(Collections.nCopies(4, null));
 
+    // Walking sound timing
+    private double walkingSoundTimer = 0;
+    private static final double WALKING_SOUND_INTERVAL = 0.4; // Play walking sound every 0.4 seconds
+
     // ─── Getters ───────────────────────────────────────────────────────────────
 
     public List<InventoryItem> getInventory() { return inventory; }
@@ -192,6 +196,17 @@ public class PlayerComponent extends Component {
             physics.setVelocityX(0);
             jumping = false;
         }
+
+        // Handle walking sound
+        if (isGrounded() && Math.abs(physics.getVelocityX()) > 10 && texture.getAnimationChannel() == animWalk) {
+            walkingSoundTimer -= tpf;
+            if (walkingSoundTimer <= 0) {
+                SoundManager.playWalkingSound();
+                walkingSoundTimer = WALKING_SOUND_INTERVAL;
+            }
+        } else {
+            walkingSoundTimer = 0; // Reset timer when not walking
+        }
     }
 
     public void takeDamage(double damage, double knockbackDirX) {takeDamage(damage, knockbackDirX, -80);}
@@ -264,6 +279,7 @@ public class PlayerComponent extends Component {
         if (isGrounded()) {
             jumping = true;
             physics.setVelocityY(-200);
+            SoundManager.playJumpSound();
         }
     }
 

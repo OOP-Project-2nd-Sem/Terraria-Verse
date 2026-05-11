@@ -173,6 +173,9 @@ public class GameApp extends GameApplication {
 
                 //Only execute after a duration of mineTime has passed
                 timer = FXGL.getGameTimer().runOnceAfter(() -> {
+                    // Play mine sound based on block type
+                    SoundManager.playMineSoundForBlockType(blockType);
+                    
                     spawn("item", new SpawnData(blockToMine.getX(), blockToMine.getY())
                             .put("type", itemName)
                             .put("width", 8)
@@ -302,10 +305,11 @@ public class GameApp extends GameApplication {
 
     // ─── UI ────────────────────────────────────────────────────────────────────
 
-@Override
-protected void initUI() {
-    showMainMenu();
-}
+    @Override
+    protected void initUI() {
+        SoundManager.playMenuMusic();
+        showMainMenu();
+    }
 
     @Override
     protected void onUpdate(double tpf) {
@@ -460,7 +464,10 @@ protected void initUI() {
         FXGL.getGameScene().addUINode(titleBox);
         Button selectChar  = menuButton("Select Character");
 
-        selectChar.setOnAction(e  -> showCharacterSelection());
+        selectChar.setOnAction(e  -> {
+            SoundManager.playMenuClickSound();
+            showCharacterSelection();
+        });
 
         menu.getChildren().addAll(selectChar);
         showMenu(menu);
@@ -491,7 +498,10 @@ protected void initUI() {
 
         for (String name : characters) {
             Button btn = characterButton(name);
-            btn.setOnAction(e -> showWorldSelection(name));
+            btn.setOnAction(e -> {
+                SoundManager.playMenuClickSound();
+                showWorldSelection(name);
+            });
             characterList.getChildren().add(btn);
         }
 
@@ -579,12 +589,16 @@ protected void initUI() {
             String name = nameField.getText().trim();
             if (name.isEmpty()) return;
 
+            SoundManager.playMenuClickSound();
             CharacterData newChar = new CharacterData(name);
             SaveManager.saveCharacter(newChar);
             showWorldSelection(name);
         });
         Button back = menuButton("Back");
-        back.setOnAction(e -> showCharacterSelection());
+        back.setOnAction(e -> {
+            SoundManager.playMenuClickSound();
+            showCharacterSelection();
+        });
 
         menu.getChildren().addAll(nameField, create, back);
         FXGL.getGameScene().addUINode(menu);
@@ -629,6 +643,7 @@ protected void initUI() {
                 seedField.setStyle("-fx-border-color: red;");
                 return;
             }
+            SoundManager.playMenuClickSound();
             long worldSeed = seed.hashCode();
             showLoadingThenStart(characterName);
         });
@@ -640,7 +655,10 @@ protected void initUI() {
         });
 
         Button back = menuButton("Back");
-        back.setOnAction(e -> showCharacterSelection());
+        back.setOnAction(e -> {
+            SoundManager.playMenuClickSound();
+            showCharacterSelection();
+        });
 
         menu.getChildren().addAll(seedLabel, seedField, generate, back);
         showMenu(menu);
@@ -713,7 +731,7 @@ protected void initUI() {
         FXGL.getGameScene().getViewport().setZoom(1.55);
         updateLoadedTerrainWindow(true);
 
-
+        SoundManager.playGameMusic();
 
         displayHpBar();
     }
@@ -732,6 +750,7 @@ protected void initUI() {
         generatedTunnelRegions.clear();
         resetLoadedTerrainWindow();
 
+        SoundManager.playMenuMusic();
         showMainMenu();
     }
 
