@@ -188,10 +188,20 @@ public class GameApp extends GameApplication {
                 if (blockToMine == null)
                     return;
 
-                //Set the default value of mine time to 2.0 if the Entity does not have the property of "mine_time"
-                double mineTime = blockToMine.getProperties().exists("mine_time") ? blockToMine.getDouble("mine_time") : 2.0;
-
+                // 1. Get the block's base mine time and type
+                double baseMineTime = blockToMine.getProperties().exists("mine_time") ? blockToMine.getDouble("mine_time") : 2.0;
                 Config.BlockType blockType = blockToMine.getObject("type");
+
+                // 2. Read what the player is currently holding in their selected hotbar slot
+                PlayerComponent pc = player.getComponent(PlayerComponent.class);
+                InventoryItem heldItem = null;
+                if (!selectionState.isEmpty() && selectionState.getSlotType().equals("hotbar")) {
+                    heldItem = pc.getHotbar().get(selectionState.getIndex());
+                }
+
+                // 3. Calculate the actual final mine time using our new helper!
+                double finalMineTime = calculateDynamicMineTime(baseMineTime, blockType, heldItem);
+
                 String itemName = getItemNameFromBlockType(blockType);
 
                 //Only execute after a duration of mineTime has passed
@@ -210,7 +220,7 @@ public class GameApp extends GameApplication {
 
                     setTerrainTile(tileX, tileY, null);
                     despawnTerrainTile(tileX, tileY);
-                }, Duration.seconds(mineTime));
+                }, Duration.seconds(finalMineTime));
             }
 
             //Reset the timer after user release the primary button
@@ -954,6 +964,47 @@ public class GameApp extends GameApplication {
 
         FXGL.getGameScene().addUINode(hpBar);
         FXGL.getGameScene().addUINode(hpLabel);
+    }
+
+    private double calculateDynamicMineTime(double baseMineTime, Config.BlockType blockType, InventoryItem heldItem) {
+        // If the player's hands are empty or they aren't holding a tool, return normal speed
+        if (heldItem == null || heldItem.getCategory() != InventoryItem.ItemCategory.TOOL) {
+            return baseMineTime;
+        }
+
+        String toolName = heldItem.getName().toLowerCase();
+        String blockName = blockType.toString();
+
+        // Group the blocks into categories based on their names
+        boolean isStoneOrOre = blockName.contains("STONE") || blockName.contains("ORE") || blockName.contains("BLOCK") || blockName.contains("COAL");
+        boolean isDirtOrGrass = blockName.contains("DIRT") || blockName.contains("GRASS");
+        boolean isWood = blockName.contains("TREE") || blockName.contains("LEAF") || blockName.contains("PLANK");
+
+        // Pickaxe Logic (For Stone and Ores)
+        if (toolName.contains("pickaxe") && isStoneOrOre) {
+            if (toolName.contains("wood")) return baseMineTime * 0.5;   // 2x faster
+            if (toolName.equals("stone_pickaxe")) return baseMineTime * 0.35;   // ~3x faster
+            if (toolName.equals("iron_pickaxe")) return baseMineTime * 0.2;     // 5x faster
+            if (toolName.equals("diamond_pickaxe")) return baseMineTime * 0.1;  // 10x faster
+            return baseMineTime * 0.5; // Default pickaxe speed
+        }
+
+        // Axe Logic (For Wood and Leaves)
+        if (toolName.contains("axe") && !toolName.contains("pickaxe") && isWood) {
+            if (toolName.equals("wooden_axe")) return baseMineTime * 0.5;
+            if (toolName.equals("iron_axe")) return baseMineTime * 0.2;
+            return baseMineTime * 0.5;
+        }
+
+        // Shovel Logic (For Dirt and Grass)
+        if (toolName.contains("shovel") && isDirtOrGrass) {
+            if (toolName.equals("wooden_shovel")) return baseMineTime * 0.5;
+            if (toolName.equals("iron_shovel")) return baseMineTime * 0.2;
+            return baseMineTime * 0.5;
+        }
+
+        // Using the wrong tool (e.g., hitting stone with an axe or shovel)
+        return baseMineTime;
     }
 
     // Convert BlockType to item name string for inventory

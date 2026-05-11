@@ -103,7 +103,7 @@ public class CraftingRecipe {
         // ════════════════════════════════════════════════════════════════════
 
         // ── Wood tools ───────────────────────────────────────────────────────
-        ALL_RECIPES.add(new CraftingRecipe("wooden_pickaxe", 1,
+        ALL_RECIPES.add(new CraftingRecipe("wood_pickaxe", 1,
                 of("plank", 3, "stick", 2), true));
 
         ALL_RECIPES.add(new CraftingRecipe("wood_axe", 1,
